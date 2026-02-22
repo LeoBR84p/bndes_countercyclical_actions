@@ -1,0 +1,934 @@
+﻿================================================================================
+AN┴LISE COMPARATIVA DOS ARQUIVOS PARQUET
+================================================================================
+
+1. RESUMO GERAL DOS PAIN╔IS
+--------------------------------------------------------------------------------
+
+arquivo:
+  painel1     : painel1
+  painel1c    : painel1c
+  painel2     : painel2
+  painel2c    : painel2c
+  painel3     : painel3
+  painel3c    : painel3c
+  painel4     : painel4
+  painel4c    : painel4c
+
+total_registros:
+  painel1     : 89044
+  painel1c    : 89043
+  painel2     : 89044
+  painel2c    : 89043
+  painel3     : 89044
+  painel3c    : 89043
+  painel4     : 89044
+  painel4c    : 89043
+
+total_colunas:
+  painel1     : 29
+  painel1c    : 31
+  painel2     : 27
+  painel2c    : 29
+  painel3     : 29
+  painel3c    : 29
+  painel4     : 28
+  painel4c    : 30
+
+municipios_unicos:
+  painel1     : 5289
+  painel1c    : 5289
+  painel2     : 5289
+  painel2c    : 5289
+  painel3     : 5289
+  painel3c    : 5289
+  painel4     : 5289
+  painel4c    : 5289
+
+estados_unicos:
+  painel1     : 27
+  painel1c    : 27
+  painel2     : 27
+  painel2c    : 27
+  painel3     : 27
+  painel3c    : 27
+  painel4     : 27
+  painel4c    : 27
+
+mun_est_unicos:
+  painel1     : 5570
+  painel1c    : 5570
+  painel2     : 5570
+  painel2c    : 5570
+  painel3     : 5570
+  painel3c    : 5570
+  painel4     : 5570
+  painel4c    : 5570
+
+valores_vazios:
+  painel1     : 0
+  painel1c    : 0
+  painel2     : 0
+  painel2c    : 0
+  painel3     : 0
+  painel3c    : 0
+  painel4     : 0
+  painel4c    : 0
+
+valores_nao_vazios:
+  painel1     : 2582276
+  painel1c    : 2760333
+  painel2     : 2404188
+  painel2c    : 2582247
+  painel3     : 2582276
+  painel3c    : 2582247
+  painel4     : 2493232
+  painel4c    : 2671290
+
+shape:
+  painel1     : 89044 x 29
+  painel1c    : 89043 x 31
+  painel2     : 89044 x 27
+  painel2c    : 89043 x 29
+  painel3     : 89044 x 29
+  painel3c    : 89043 x 29
+  painel4     : 89044 x 28
+  painel4c    : 89043 x 30
+
+================================================================================
+2. AN┴LISE DE MUNIC═PIOS-ESTADO ┌NICOS
+--------------------------------------------------------------------------------
+painel1     : 5570 pares municÝpio-estado ·nicos
+painel1c    : 5570 pares municÝpio-estado ·nicos
+painel2     : 5570 pares municÝpio-estado ·nicos
+painel2c    : 5570 pares municÝpio-estado ·nicos
+painel3     : 5570 pares municÝpio-estado ·nicos
+painel3c    : 5570 pares municÝpio-estado ·nicos
+painel4     : 5570 pares municÝpio-estado ·nicos
+painel4c    : 5570 pares municÝpio-estado ·nicos
+
+[OK] TODOS os arquivos tÛm o MESMO n·mero de municÝpios-estado ·nicos: 5570
+
+================================================================================
+3. COMPARAÃ├O DE VARI┴VEIS POR ARQUIVO
+--------------------------------------------------------------------------------
+
+painel1      (29 colunas):
+  Colunas: ano, codigo, delta_log_pib_real, desembolsos_corrente, desembolsos_real, estado, log_pib_real, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+painel1c     (31 colunas):
+  Colunas: ano, codigo, delta_log_pib_real, desembolsos_corrente, desembolsos_real, estado, log_pib_real, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+painel2      (27 colunas):
+  Colunas: ano, asinh_va_industria_real, codigo, delta_asinh_va_industria_real, desembolsos_industria_corrente, desembolsos_industria_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_industria_real_ano_anterior, share_desembolso_industria_real_ano_anterior_lag1, share_desembolso_industria_real_ano_anterior_lag2, share_desembolso_industria_real_ano_anterior_lag3, share_industria, share_industria_lag1, va_industria_corrente, va_industria_real
+
+painel2c     (29 colunas):
+  Colunas: ano, asinh_va_industria_real, codigo, delta_asinh_va_industria_real, desembolsos_industria_corrente, desembolsos_industria_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_industria_real_ano_anterior, share_desembolso_industria_real_ano_anterior_lag1, share_desembolso_industria_real_ano_anterior_lag2, share_desembolso_industria_real_ano_anterior_lag3, share_desembolso_industria_real_pib_real_ano_anterior_lead1, share_desembolso_industria_real_pib_real_ano_anterior_lead2, share_industria, share_industria_lag1, va_industria_corrente, va_industria_real
+
+painel3      (29 colunas):
+  Colunas: ano, asinh_va_agropecuaria_real, codigo, delta_asinh_va_agropecuaria_real, desembolsos_agropecuaria_corrente, desembolsos_agropecuaria_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_agropecuaria_real_ano_anterior, share_desembolso_agropecuaria_real_ano_anterior_lag1, share_desembolso_agropecuaria_real_ano_anterior_lag2, share_desembolso_agropecuaria_real_ano_anterior_lag3, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+painel3c     (29 colunas):
+  Colunas: ano, asinh_va_agropecuaria_real, codigo, delta_asinh_va_agropecuaria_real, desembolsos_agropecuaria_corrente, desembolsos_agropecuaria_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_agropecuaria_real_ano_anterior, share_desembolso_agropecuaria_real_ano_anterior_lag1, share_desembolso_agropecuaria_real_ano_anterior_lag2, share_desembolso_agropecuaria_real_ano_anterior_lag3, share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1, share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real
+
+painel4      (28 colunas):
+  Colunas: ano, codigo, delta_log_pibpc_real, desembolsos_corrente, desembolsos_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+painel4c     (30 colunas):
+  Colunas: ano, codigo, delta_log_pibpc_real, desembolsos_corrente, desembolsos_real, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2, share_industria, share_industria_lag1, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+Colunas COMUNS a TODOS os arquivos (17):
+  ano, codigo, estado, log_pibpc_real, log_pibpc_real_lag1, log_populacao, log_populacao_lag1, mun_est, municipio, pib_corrente, pib_real, pibpc_real, populacao, share_agropecuaria, share_agropecuaria_lag1, share_industria, share_industria_lag1
+
+Colunas ┌NICAS em painel1:
+  delta_log_pib_real, desembolsos_corrente, desembolsos_real, log_pib_real, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel1c:
+  delta_log_pib_real, desembolsos_corrente, desembolsos_real, log_pib_real, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel2:
+  asinh_va_industria_real, delta_asinh_va_industria_real, desembolsos_industria_corrente, desembolsos_industria_real, share_desembolso_industria_real_ano_anterior, share_desembolso_industria_real_ano_anterior_lag1, share_desembolso_industria_real_ano_anterior_lag2, share_desembolso_industria_real_ano_anterior_lag3, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel2c:
+  asinh_va_industria_real, delta_asinh_va_industria_real, desembolsos_industria_corrente, desembolsos_industria_real, share_desembolso_industria_real_ano_anterior, share_desembolso_industria_real_ano_anterior_lag1, share_desembolso_industria_real_ano_anterior_lag2, share_desembolso_industria_real_ano_anterior_lag3, share_desembolso_industria_real_pib_real_ano_anterior_lead1, share_desembolso_industria_real_pib_real_ano_anterior_lead2, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel3:
+  asinh_va_agropecuaria_real, delta_asinh_va_agropecuaria_real, desembolsos_agropecuaria_corrente, desembolsos_agropecuaria_real, share_desembolso_agropecuaria_real_ano_anterior, share_desembolso_agropecuaria_real_ano_anterior_lag1, share_desembolso_agropecuaria_real_ano_anterior_lag2, share_desembolso_agropecuaria_real_ano_anterior_lag3, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel3c:
+  asinh_va_agropecuaria_real, delta_asinh_va_agropecuaria_real, desembolsos_agropecuaria_corrente, desembolsos_agropecuaria_real, share_desembolso_agropecuaria_real_ano_anterior, share_desembolso_agropecuaria_real_ano_anterior_lag1, share_desembolso_agropecuaria_real_ano_anterior_lag2, share_desembolso_agropecuaria_real_ano_anterior_lag3, share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1, share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2, va_agropecuaria_corrente, va_agropecuaria_real
+
+Colunas ┌NICAS em painel4:
+  delta_log_pibpc_real, desembolsos_corrente, desembolsos_real, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+Colunas ┌NICAS em painel4c:
+  delta_log_pibpc_real, desembolsos_corrente, desembolsos_real, share_desembolso_real_pib_real_ano_anterior, share_desembolso_real_pib_real_ano_anterior_lag1, share_desembolso_real_pib_real_ano_anterior_lag2, share_desembolso_real_pib_real_ano_anterior_lag3, share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2, va_agropecuaria_corrente, va_agropecuaria_real, va_industria_corrente, va_industria_real
+
+================================================================================
+4. TOTAIS DAS VARI┴VEIS NUM╔RICAS (SUM)
+--------------------------------------------------------------------------------
+
+ano:
+  painel1     :       179,290,343.00
+  painel1c    :       179,288,332.00
+  painel2     :       179,290,343.00
+  painel2c    :       179,288,332.00
+  painel3     :       179,290,343.00
+  painel3c    :       179,288,332.00
+  painel4     :       179,290,343.00
+  painel4c    :       179,288,332.00
+
+asinh_va_agropecuaria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :         1,006,081.08
+  painel3c    :         1,006,069.87
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+asinh_va_industria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :           964,827.05
+  painel2c    :           964,840.10
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+delta_asinh_va_agropecuaria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :             1,170.84
+  painel3c    :             1,170.95
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+delta_asinh_va_industria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :             2,416.24
+  painel2c    :             2,443.58
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+delta_log_pib_real:
+  painel1     :             2,666.23
+  painel1c    :             2,667.27
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+delta_log_pibpc_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :             2,280.48
+  painel4c    :             2,281.55
+
+desembolsos_agropecuaria_corrente:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :       145,386,328.90
+  painel3c    :       145,386,328.90
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+desembolsos_agropecuaria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :       283,557,385.54
+  painel3c    :       283,557,385.54
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+desembolsos_corrente:
+  painel1     :     1,222,343,872.10
+  painel1c    :     1,222,253,996.42
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :     1,222,343,872.10
+  painel4c    :     1,222,253,996.42
+
+desembolsos_industria_corrente:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :       639,362,621.16
+  painel2c    :       639,272,745.47
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+desembolsos_industria_real:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :     1,371,421,515.78
+  painel2c    :     1,371,227,055.61
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+desembolsos_real:
+  painel1     :     2,225,138,878.42
+  painel1c    :     2,224,961,131.71
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :     2,225,138,878.42
+  painel4c    :     2,224,961,131.71
+
+log_pib_real:
+  painel1     :         1,113,000.12
+  painel1c    :         1,112,986.95
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+log_pibpc_real:
+  painel1     :           272,236.14
+  painel1c    :           272,232.41
+  painel2     :           272,236.14
+  painel2c    :           272,232.41
+  painel3     :           272,236.14
+  painel3c    :           272,232.41
+  painel4     :           272,236.14
+  painel4c    :           272,232.41
+
+log_pibpc_real_lag1:
+  painel1     :           269,955.67
+  painel1c    :           269,950.86
+  painel2     :           269,955.67
+  painel2c    :           269,950.86
+  painel3     :           269,955.67
+  painel3c    :           269,950.86
+  painel4     :           269,955.67
+  painel4c    :           269,950.86
+
+log_populacao:
+  painel1     :           840,763.98
+  painel1c    :           840,754.53
+  painel2     :           840,763.98
+  painel2c    :           840,754.53
+  painel3     :           840,763.98
+  painel3c    :           840,754.53
+  painel4     :           840,763.98
+  painel4c    :           840,754.53
+
+log_populacao_lag1:
+  painel1     :           840,378.23
+  painel1c    :           840,368.81
+  painel2     :           840,378.23
+  painel2c    :           840,368.81
+  painel3     :           840,378.23
+  painel3c    :           840,368.81
+  painel4     :           840,378.23
+  painel4c    :           840,368.81
+
+pib_corrente:
+  painel1     :    85,621,413,662.48
+  painel1c    :    85,621,147,331.06
+  painel2     :    85,621,413,662.48
+  painel2c    :    85,621,147,331.06
+  painel3     :    85,621,413,662.48
+  painel3c    :    85,621,147,331.06
+  painel4     :    85,621,413,662.48
+  painel4c    :    85,621,147,331.06
+
+pib_real:
+  painel1     :   135,090,027,472.54
+  painel1c    :   135,089,500,750.16
+  painel2     :   135,090,027,472.54
+  painel2c    :   135,089,500,750.16
+  painel3     :   135,090,027,472.54
+  painel3c    :   135,089,500,750.16
+  painel4     :   135,090,027,472.54
+  painel4c    :   135,089,500,750.16
+
+pibpc_real:
+  painel1     :         2,515,049.89
+  painel1c    :         2,515,008.15
+  painel2     :         2,515,049.89
+  painel2c    :         2,515,008.15
+  painel3     :         2,515,049.89
+  painel3c    :         2,515,008.15
+  painel4     :         2,515,049.89
+  painel4c    :         2,515,008.15
+
+populacao:
+  painel1     :     3,194,691,736.00
+  painel1c    :     3,194,679,118.00
+  painel2     :     3,194,691,736.00
+  painel2c    :     3,194,679,118.00
+  painel3     :     3,194,691,736.00
+  painel3c    :     3,194,679,118.00
+  painel4     :     3,194,691,736.00
+  painel4c    :     3,194,679,118.00
+
+share_agropecuaria:
+  painel1     :            22,117.60
+  painel1c    :            22,117.53
+  painel2     :            22,117.60
+  painel2c    :            22,117.53
+  painel3     :            22,117.60
+  painel3c    :            22,117.53
+  painel4     :            22,117.60
+  painel4c    :            22,117.53
+
+share_agropecuaria_lag1:
+  painel1     :            22,322.51
+  painel1c    :            22,322.48
+  painel2     :            22,322.51
+  painel2c    :            22,322.48
+  painel3     :            22,322.51
+  painel3c    :            22,322.48
+  painel4     :            22,322.51
+  painel4c    :            22,322.48
+
+share_desembolso_agropecuaria_real_ano_anterior:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :               582.05
+  painel3c    :               582.05
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_agropecuaria_real_ano_anterior_lag1:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :               566.82
+  painel3c    :               566.82
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_agropecuaria_real_ano_anterior_lag2:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :               540.64
+  painel3c    :               540.64
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_agropecuaria_real_ano_anterior_lag3:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :               509.00
+  painel3c    :               509.00
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    :               567.15
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    :               548.30
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_ano_anterior:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :               897.03
+  painel2c    :               896.90
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_ano_anterior_lag1:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :               914.14
+  painel2c    :               914.14
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_ano_anterior_lag2:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :               926.59
+  painel2c    :               926.59
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_ano_anterior_lag3:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     :               929.92
+  painel2c    :               929.92
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_pib_real_ano_anterior_lead1:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    :               841.96
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_industria_real_pib_real_ano_anterior_lead2:
+  painel1     : (coluna nÒo existe)
+  painel1c    : (coluna nÒo existe)
+  painel2     : (coluna nÒo existe)
+  painel2c    :               787.76
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    : (coluna nÒo existe)
+
+share_desembolso_real_pib_real_ano_anterior:
+  painel1     :             1,538.82
+  painel1c    :             1,538.70
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :             1,538.82
+  painel4c    :             1,538.70
+
+share_desembolso_real_pib_real_ano_anterior_lag1:
+  painel1     :             1,539.71
+  painel1c    :             1,539.71
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :             1,539.71
+  painel4c    :             1,539.71
+
+share_desembolso_real_pib_real_ano_anterior_lag2:
+  painel1     :             1,526.83
+  painel1c    :             1,526.83
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :             1,526.83
+  painel4c    :             1,526.83
+
+share_desembolso_real_pib_real_ano_anterior_lag3:
+  painel1     :             1,515.12
+  painel1c    :             1,515.12
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     :             1,515.12
+  painel4c    :             1,515.12
+
+share_desembolso_real_pib_real_ano_anterior_lead1:
+  painel1     : (coluna nÒo existe)
+  painel1c    :             1,523.28
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    :             1,523.28
+
+share_desembolso_real_pib_real_ano_anterior_lead2:
+  painel1     : (coluna nÒo existe)
+  painel1c    :             1,529.21
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     : (coluna nÒo existe)
+  painel3c    : (coluna nÒo existe)
+  painel4     : (coluna nÒo existe)
+  painel4c    :             1,529.21
+
+share_industria:
+  painel1     :            12,740.93
+  painel1c    :            12,741.37
+  painel2     :            12,740.93
+  painel2c    :            12,741.37
+  painel3     :            12,740.93
+  painel3c    :            12,741.37
+  painel4     :            12,740.93
+  painel4c    :            12,741.37
+
+share_industria_lag1:
+  painel1     :            12,678.92
+  painel1c    :            12,678.39
+  painel2     :            12,678.92
+  painel2c    :            12,678.39
+  painel3     :            12,678.92
+  painel3c    :            12,678.39
+  painel4     :            12,678.92
+  painel4c    :            12,678.39
+
+va_agropecuaria_corrente:
+  painel1     :     4,070,569,938.94
+  painel1c    :     4,070,554,775.09
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :     4,070,569,938.94
+  painel3c    :     4,070,554,775.09
+  painel4     :     4,070,569,938.94
+  painel4c    :     4,070,554,775.09
+
+va_agropecuaria_real:
+  painel1     :     7,833,701,294.52
+  painel1c    :     7,833,664,408.61
+  painel2     : (coluna nÒo existe)
+  painel2c    : (coluna nÒo existe)
+  painel3     :     7,833,701,294.52
+  painel3c    :     7,833,664,408.61
+  painel4     :     7,833,701,294.52
+  painel4c    :     7,833,664,408.61
+
+va_industria_corrente:
+  painel1     :    17,625,759,734.09
+  painel1c    :    17,625,867,848.50
+  painel2     :    17,625,759,734.09
+  painel2c    :    17,625,867,848.50
+  painel3     :    17,625,759,734.09
+  painel3c    : (coluna nÒo existe)
+  painel4     :    17,625,759,734.09
+  painel4c    :    17,625,867,848.50
+
+va_industria_real:
+  painel1     :    32,301,656,813.87
+  painel1c    :    32,301,890,736.40
+  painel2     :    32,301,656,813.87
+  painel2c    :    32,301,890,736.40
+  painel3     :    32,301,656,813.87
+  painel3c    : (coluna nÒo existe)
+  painel4     :    32,301,656,813.87
+  painel4c    :    32,301,890,736.40
+
+================================================================================
+5. REGISTROS VAZIOS E N├O VAZIOS
+--------------------------------------------------------------------------------
+
+painel1:
+  Total de cÚlulas: 2,582,276
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,582,276 (100.00%)
+  Vazios por coluna:
+
+painel1c:
+  Total de cÚlulas: 2,760,333
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,760,333 (100.00%)
+  Vazios por coluna:
+
+painel2:
+  Total de cÚlulas: 2,404,188
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,404,188 (100.00%)
+  Vazios por coluna:
+
+painel2c:
+  Total de cÚlulas: 2,582,247
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,582,247 (100.00%)
+  Vazios por coluna:
+
+painel3:
+  Total de cÚlulas: 2,582,276
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,582,276 (100.00%)
+  Vazios por coluna:
+
+painel3c:
+  Total de cÚlulas: 2,582,247
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,582,247 (100.00%)
+  Vazios por coluna:
+
+painel4:
+  Total de cÚlulas: 2,493,232
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,493,232 (100.00%)
+  Vazios por coluna:
+
+painel4c:
+  Total de cÚlulas: 2,671,290
+  CÚlulas vazias (NaN/null): 0 (0.00%)
+  CÚlulas nÒo vazias: 2,671,290 (100.00%)
+  Vazios por coluna:
+
+================================================================================
+6. AN┴LISE DE SOBREPOSIÃ├O E DUPLICAÃ├O DE DADOS
+--------------------------------------------------------------------------------
+
+painel1:
+  Colunas de tempo: ['ano', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel1c:
+  Colunas de tempo: ['ano', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_real_pib_real_ano_anterior_lead1', 'share_desembolso_real_pib_real_ano_anterior_lead2']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel2:
+  Colunas de tempo: ['ano', 'share_desembolso_industria_real_ano_anterior', 'share_desembolso_industria_real_ano_anterior_lag1', 'share_desembolso_industria_real_ano_anterior_lag2', 'share_desembolso_industria_real_ano_anterior_lag3']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel2c:
+  Colunas de tempo: ['ano', 'share_desembolso_industria_real_ano_anterior', 'share_desembolso_industria_real_ano_anterior_lag1', 'share_desembolso_industria_real_ano_anterior_lag2', 'share_desembolso_industria_real_ano_anterior_lag3', 'share_desembolso_industria_real_pib_real_ano_anterior_lead1', 'share_desembolso_industria_real_pib_real_ano_anterior_lead2']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel3:
+  Colunas de tempo: ['ano', 'share_desembolso_agropecuaria_real_ano_anterior', 'share_desembolso_agropecuaria_real_ano_anterior_lag1', 'share_desembolso_agropecuaria_real_ano_anterior_lag2', 'share_desembolso_agropecuaria_real_ano_anterior_lag3']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel3c:
+  Colunas de tempo: ['ano', 'share_desembolso_agropecuaria_real_ano_anterior', 'share_desembolso_agropecuaria_real_ano_anterior_lag1', 'share_desembolso_agropecuaria_real_ano_anterior_lag2', 'share_desembolso_agropecuaria_real_ano_anterior_lag3', 'share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1', 'share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel4:
+  Colunas de tempo: ['ano', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+painel4c:
+  Colunas de tempo: ['ano', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_real_pib_real_ano_anterior_lead1', 'share_desembolso_real_pib_real_ano_anterior_lead2']
+  Colunas de ID: ['municipio', 'estado', 'mun_est']
+
+--------------------------------------------------------------------------------
+Verificando sobreposiþÒo entre pares de arquivos...
+--------------------------------------------------------------------------------
+
+═ndice de Jaccard (similaridade: 0=disjunto, 1=idÛntico):
+
+painel1 vs painel1c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel2
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel2c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel3
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel3c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1 vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel2
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel2c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel3
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel3c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel1c vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2 vs painel2c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2 vs painel3
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2 vs painel3c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2 vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2 vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2c vs painel3
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2c vs painel3c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2c vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel2c vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel3 vs painel3c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel3 vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel3 vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel3c vs painel4
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel3c vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+painel4 vs painel4c
+  Pares em comum: 5570
+  Pares ·nicos (uniÒo): 5570
+  ═ndice Jaccard: 1.0000 (100.00%)
+
+================================================================================
+7. AN┴LISE DE VIABILIDADE DE CONSOLIDAÃ├O
+--------------------------------------------------------------------------------
+
+Grupos por padrÒo de nomes:
+  painel1: ['painel1', 'painel1c']
+  painel2: ['painel2', 'painel2c']
+  painel3: ['painel3', 'painel3c']
+  painel4: ['painel4', 'painel4c']
+
+Comparando arquivos complementares (com 'c'):
+
+painel1:
+  painel1: 89044 registros, 29 colunas
+  painel1c: 89043 registros, 31 colunas
+  Colunas apenas em painel1c: share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2
+  SobreposiþÒo (municÝpio-estado): 5570/5570
+
+painel2:
+  painel2: 89044 registros, 27 colunas
+  painel2c: 89043 registros, 29 colunas
+  Colunas apenas em painel2c: share_desembolso_industria_real_pib_real_ano_anterior_lead1, share_desembolso_industria_real_pib_real_ano_anterior_lead2
+  SobreposiþÒo (municÝpio-estado): 5570/5570
+
+painel3:
+  painel3: 89044 registros, 29 colunas
+  painel3c: 89043 registros, 29 colunas
+  Colunas apenas em painel3: va_industria_corrente, va_industria_real
+  Colunas apenas em painel3c: share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1, share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2
+  SobreposiþÒo (municÝpio-estado): 5570/5570
+
+painel4:
+  painel4: 89044 registros, 28 colunas
+  painel4c: 89043 registros, 30 colunas
+  Colunas apenas em painel4c: share_desembolso_real_pib_real_ano_anterior_lead1, share_desembolso_real_pib_real_ano_anterior_lead2
+  SobreposiþÒo (municÝpio-estado): 5570/5570
+
+================================================================================
+CONCLUS├O E RECOMENDAÃıES
+================================================================================
+
+Total de registros se concatenados: 712,348
+Total de registros ·nicos (ap¾s remover exatos): 712,348
+
+[ALERTA] Os arquivos tÛm baixa sobreposiþÒo. ConsolidaþÒo recomendada apenas se:
+   - As varißveis forem complementares
+   - Quiser um ·nico arquivo de entrada
+   - Estiver disposto a lidar com valores faltantes
+
+================================================================================

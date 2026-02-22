@@ -1,0 +1,14 @@
+# Arquivos de dados
+*.parquet
+*.json
+
+# Ambiente virtual
+venv/
+.venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
