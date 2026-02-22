@@ -29,30 +29,8 @@ df_hab = df_hab[cols]
 df_hab['codigo'] = df_hab['codigo'].astype('string')
 df_hab['municipio'] = df_hab['municipio'].astype('string')
 
-# TODO Verificações opcionais
-"""
-print(f'Tipagens das colunas do DataFrame de população do Datasus:')
-print(df_hab.dtypes)
-print(f'Número de linhas e colunas: {df_hab.shape}')
-print(f'Exemplo de dados:')
-print(df_hab.head())
-print(f'Número de dados vazios: {np.count_nonzero(df_hab.isna().to_numpy())}')
-print(f'Linhas com dados vazios: {np.count_nonzero(df_hab.isna().to_numpy().any(axis=1))}')
-print(f'Conteúdo das linhas com dados vazios:')
-print(df_hab[df_hab.isna().to_numpy().any(axis=1)])
-"""
-
 # Drop linhas vazias
 df_hab.dropna(inplace=True)
-
-# TODO Verificações opcionais
-"""
-print(f'Número de linhas e colunas após drop: {df_hab.shape}')
-print(f'Número de dados vazios após drop: {np.count_nonzero(df_hab.isna().to_numpy())}')
-print(f'Linhas com dados vazios após drop: {np.count_nonzero(df_hab.isna().to_numpy().any(axis=1))}')
-print(f'Conteúdo das linhas com dados vazios após drop:')
-print(df_hab[df_hab.isna().to_numpy().any(axis=1)])
-"""
 
 # ! DataFrame não possui informações sobre os Estados associados, sendo aconselhado incluir de maneira objetiva
 # Mapa oficial de codigos IBGE (UF) - https://www.ibge.gov.br/explica/codigos-dos-municipios.php
@@ -138,163 +116,64 @@ if len(idx_2021) > 0:
 df_deflator_pib = df_deflator_pib[['ano', 'indice_encadeado']]
 df_deflator_pib.rename(columns={'indice_encadeado': 'deflator_pib_2021'}, inplace=True)
 
-# TODO Verificações opcionais
-"""
-print(f'\nDataFrame de deflator do PIB:')
-print(f'Tipagens das colunas: {df_deflator_pib.dtypes}')
-print(f'Número de linhas e colunas: {df_deflator_pib.shape}')
-print(f'Dados:')
-print(df_deflator_pib)
-"""
-
 # APURAÇÃO DE DEFLATORES PARA PIB INDUSTRIAL + DESEMBOLSOS INDUSTRIAIS E PIB AGROPECUÁRIA + DESEMBOLSOS AGROPECUÁRIA
 # Fonte 3: Tabela 10.1 - Valor adicionado bruto constante e corrente, segundo os grupos de atividades - 2000-2023
 # https://ftp.ibge.gov.br/Contas_Nacionais/Sistema_de_Contas_Nacionais/2023/tabelas_xls/sinoticas/tab10_1.xls
 
-# Importar o arquivo Excel
-df_deflator_pib_industria = pd.read_excel(Path(RAW_DATA_PATH) / 'tab10_1_deflator_pib_setor.xlsx', skiprows=4)
+def carregar_deflator_setor(setor, coluna_deflator, anos_min=2002, anos_max=2023):
+    df_setor = pd.read_excel(Path(RAW_DATA_PATH) / 'tab10_1_deflator_pib_setor.xlsx', skiprows=4)
+    df_setor.rename(columns={'Unnamed: 1': 'setor'}, inplace=True)
+    df_setor = df_setor[df_setor['setor'] == setor].copy()
 
-# Renomear Unnamed: 1 para setor, manter dados apenas de setor 'Indústria', drop demais linhas
-df_deflator_pib_industria.rename(columns={'Unnamed: 1': 'setor'}, inplace=True)
-df_deflator_pib_industria = df_deflator_pib_industria[df_deflator_pib_industria['setor'] == 'Indústria'].copy()
+    df_setor.columns = df_setor.columns.astype(str)
+    rename_dict = {'2000': '2000_corrente'}
+    for ano in range(2001, 2022):
+        unnamed_col = 2 * (ano - 1999)
+        rename_dict[str(ano)] = f'{ano}_constante'
+        rename_dict[f'Unnamed: {unnamed_col}'] = f'{ano}_corrente'
+    df_setor.rename(columns=rename_dict, inplace=True)
 
-# Drop e renomear outras colunas
-# Converter colunas para string para garantir compatibilidade
-df_deflator_pib_industria.columns = df_deflator_pib_industria.columns.astype(str)
+    deflator_data = []
+    for ano in range(2001, 2024):
+        corrente_col = f'{ano}_corrente'
+        constante_col = f'{ano}_constante'
+        if corrente_col in df_setor.columns and constante_col in df_setor.columns:
+            corrente = df_setor[corrente_col].values[0]
+            constante = df_setor[constante_col].values[0]
+            if pd.notna(corrente) and pd.notna(constante) and constante != 0:
+                variacao = corrente / constante
+                deflator_data.append({'ano': ano, 'variacao_deflator': variacao})
 
-# Criar dicionário de mapeamento dinâmico para anos 2000-2023
-rename_dict = {'2000': '2000_corrente'}
+    df_processado = pd.DataFrame(deflator_data)
+    df_processado = df_processado.sort_values('ano').reset_index(drop=True)
+    df_processado['indice_encadeado'] = 100.0
 
-for ano in range(2001, 2022):
-    unnamed_col = 2 * (ano - 1999)
-    rename_dict[str(ano)] = f'{ano}_constante'
-    rename_dict[f'Unnamed: {unnamed_col}'] = f'{ano}_corrente'
+    idx_2021 = df_processado[df_processado['ano'] == 2021].index
+    if len(idx_2021) > 0:
+        idx_2021 = idx_2021[0]
+        for i in range(idx_2021 - 1, -1, -1):
+            variacao = df_processado.at[i + 1, 'variacao_deflator']
+            indice_seguinte = df_processado.at[i + 1, 'indice_encadeado']
+            df_processado.at[i, 'indice_encadeado'] = indice_seguinte / variacao #type: ignore
+        for i in range(idx_2021 + 1, len(df_processado)):
+            variacao = df_processado.at[i - 1, 'variacao_deflator']
+            indice_anterior = df_processado.at[i - 1, 'indice_encadeado']
+            df_processado.at[i, 'indice_encadeado'] = indice_anterior * variacao #type: ignore
 
-df_deflator_pib_industria.rename(columns=rename_dict, inplace=True)
+    df_final = df_processado[['ano', 'indice_encadeado']].copy()
+    df_final.rename(columns={'indice_encadeado': coluna_deflator}, inplace=True)
+    df_final = df_final[(df_final['ano'] >= anos_min) & (df_final['ano'] <= anos_max)].copy()
+    return df_final
 
-# Criar deflator_pib_industria_2021 utilizando a fórmula: deflator = PIB_corrente / PIB_constante em formato de tabela LONG (Ano, deflator_pib_industria_2021)
-deflator_data = []
-for ano in range(2001, 2024):
-    corrente_col = f'{ano}_corrente'
-    constante_col = f'{ano}_constante'
-    if corrente_col in df_deflator_pib_industria.columns and constante_col in df_deflator_pib_industria.columns:
-        corrente = df_deflator_pib_industria[corrente_col].values[0]
-        constante = df_deflator_pib_industria[constante_col].values[0]
-        if pd.notna(corrente) and pd.notna(constante) and constante != 0:
-            variacao = corrente / constante
-            deflator_data.append({'ano': ano, 'variacao_deflator': variacao})
-
-df_deflator_pib_industria_processado = pd.DataFrame(deflator_data)
-df_deflator_pib_industria_processado = df_deflator_pib_industria_processado.sort_values('ano').reset_index(drop=True)
-
-# Calcular índice encadeado acumulado com base em 2021 = 100
-df_deflator_pib_industria_processado['indice_encadeado'] = 100.0
-
-# Encontrar o índice do ano 2021
-idx_2021 = df_deflator_pib_industria_processado[df_deflator_pib_industria_processado['ano'] == 2021].index
-if len(idx_2021) > 0:
-    idx_2021 = idx_2021[0]
-    
-    # Iterar de trás para frente (de 2020 até 2001)
-    for i in range(idx_2021 - 1, -1, -1):
-        variacao = df_deflator_pib_industria_processado.at[i + 1, 'variacao_deflator']
-        indice_seguinte = df_deflator_pib_industria_processado.at[i + 1, 'indice_encadeado']
-        df_deflator_pib_industria_processado.at[i, 'indice_encadeado'] = indice_seguinte / variacao #type: ignore
-    
-    # Iterar para frente (de 2022 em diante)
-    for i in range(idx_2021 + 1, len(df_deflator_pib_industria_processado)):
-        variacao = df_deflator_pib_industria_processado.at[i - 1, 'variacao_deflator']
-        indice_anterior = df_deflator_pib_industria_processado.at[i - 1, 'indice_encadeado']
-        df_deflator_pib_industria_processado.at[i, 'indice_encadeado'] = indice_anterior * variacao #type: ignore
-
-# Formato final, apenas colunas ano e indice_encadeado (renomear para deflator_pib_industria_2021)
-df_deflator_pib_industria = df_deflator_pib_industria_processado[['ano', 'indice_encadeado']].copy()
-df_deflator_pib_industria.rename(columns={'indice_encadeado': 'deflator_pib_industria_2021'}, inplace=True)
-
-# Selecionar apenas anos entre 2002 e 2023
-df_deflator_pib_industria = df_deflator_pib_industria[(df_deflator_pib_industria['ano'] >= 2002) & (df_deflator_pib_industria['ano'] <= 2023)].copy()
-
-# TODO Verificações opcionais
-"""
-print(f'\nDataFrame de deflator do PIB industrial:')
-print(f'Tipagens das colunas: {df_deflator_pib_industria.dtypes}')
-print(f'Número de linhas e colunas: {df_deflator_pib_industria.shape}')
-print(f'Exemplo de dados:')
-print(df_deflator_pib_industria)
-"""
-
-#! REFAZER O PROCESSO PARA AGROPECUÁRIA
-# Importar o arquivo Excel
-df_deflator_pib_agropecuaria = pd.read_excel(Path(RAW_DATA_PATH) / 'tab10_1_deflator_pib_setor.xlsx', skiprows=4)
-
-# Renomear Unnamed: 1 para setor, manter dados apenas de setor 'Agropecuária', drop demais linhas
-df_deflator_pib_agropecuaria.rename(columns={'Unnamed: 1': 'setor'}, inplace=True)
-df_deflator_pib_agropecuaria = df_deflator_pib_agropecuaria[df_deflator_pib_agropecuaria['setor'] == 'Agropecuária'].copy()
-
-# Drop e renomear outras colunas
-# Converter colunas para string para garantir compatibilidade
-df_deflator_pib_agropecuaria.columns = df_deflator_pib_agropecuaria.columns.astype(str)
-
-# Criar dicionário de mapeamento dinâmico para anos 2000-2023
-rename_dict = {'2000': '2000_corrente'}
-
-for ano in range(2001, 2022):
-    unnamed_col = 2 * (ano - 1999)
-    rename_dict[str(ano)] = f'{ano}_constante'
-    rename_dict[f'Unnamed: {unnamed_col}'] = f'{ano}_corrente'
-
-df_deflator_pib_agropecuaria.rename(columns=rename_dict, inplace=True)
-
-# Criar deflator_pib_agropecuaria_2021 utilizando a fórmula: deflator = PIB_corrente / PIB_constante em formato de tabela LONG (Ano, deflator_pib_agropecuaria_2021)
-deflator_data = []
-for ano in range(2001, 2024):
-    corrente_col = f'{ano}_corrente'
-    constante_col = f'{ano}_constante'
-    if corrente_col in df_deflator_pib_agropecuaria.columns and constante_col in df_deflator_pib_agropecuaria.columns:
-        corrente = df_deflator_pib_agropecuaria[corrente_col].values[0]
-        constante = df_deflator_pib_agropecuaria[constante_col].values[0]
-        if pd.notna(corrente) and pd.notna(constante) and constante != 0:
-            variacao = corrente / constante
-            deflator_data.append({'ano': ano, 'variacao_deflator': variacao})
-
-df_deflator_pib_agropecuaria_processado = pd.DataFrame(deflator_data)
-df_deflator_pib_agropecuaria_processado = df_deflator_pib_agropecuaria_processado.sort_values('ano').reset_index(drop=True)
-
-# Calcular índice encadeado acumulado com base em 2021 = 100
-df_deflator_pib_agropecuaria_processado['indice_encadeado'] = 100.0
-
-# Encontrar o índice do ano 2021
-idx_2021 = df_deflator_pib_agropecuaria_processado[df_deflator_pib_agropecuaria_processado['ano'] == 2021].index
-if len(idx_2021) > 0:
-    idx_2021 = idx_2021[0]
-    
-    # Iterar de trás para frente (de 2020 até 2001)
-    for i in range(idx_2021 - 1, -1, -1):
-        variacao = df_deflator_pib_agropecuaria_processado.at[i + 1, 'variacao_deflator']
-        indice_seguinte = df_deflator_pib_agropecuaria_processado.at[i + 1, 'indice_encadeado']
-        df_deflator_pib_agropecuaria_processado.at[i, 'indice_encadeado'] = indice_seguinte / variacao #type: ignore
-    
-    # Iterar para frente (de 2022 em diante)
-    for i in range(idx_2021 + 1, len(df_deflator_pib_agropecuaria_processado)):
-        variacao = df_deflator_pib_agropecuaria_processado.at[i - 1, 'variacao_deflator']
-        indice_anterior = df_deflator_pib_agropecuaria_processado.at[i - 1, 'indice_encadeado']
-        df_deflator_pib_agropecuaria_processado.at[i, 'indice_encadeado'] = indice_anterior * variacao #type: ignore
-
-# Formato final, apenas colunas ano e indice_encadeado (renomear para deflator_pib_agropecuaria_2021)
-df_deflator_pib_agropecuaria = df_deflator_pib_agropecuaria_processado[['ano', 'indice_encadeado']].copy()
-df_deflator_pib_agropecuaria.rename(columns={'indice_encadeado': 'deflator_pib_agropecuaria_2021'}, inplace=True)
-
-# Selecionar apenas anos entre 2002 e 2023
-df_deflator_pib_agropecuaria = df_deflator_pib_agropecuaria[(df_deflator_pib_agropecuaria['ano'] >= 2002) & (df_deflator_pib_agropecuaria['ano'] <= 2023)].copy()
-
-# TODO Verificações opcionais
-"""
-print(f'\nDataFrame de deflator do PIB agropecuária:')
-print(f'Tipagens das colunas: {df_deflator_pib_agropecuaria.dtypes}')
-print(f'Número de linhas e colunas: {df_deflator_pib_agropecuaria.shape}')
-print(f'Exemplo de dados:')
-print(df_deflator_pib_agropecuaria)
-"""
+# Importar deflatores por setor
+df_deflator_pib_industria = carregar_deflator_setor(
+    setor='Indústria',
+    coluna_deflator='deflator_pib_industria_2021'
+)
+df_deflator_pib_agropecuaria = carregar_deflator_setor(
+    setor='Agropecuária',
+    coluna_deflator='deflator_pib_agropecuaria_2021'
+)
 
 # ! UNIR TABELA DE DEFLATORES
 # Realizar junção entre os DataFrames de deflatores utilizando a coluna Ano
@@ -322,7 +201,7 @@ tabela_deflatores = pa.Table.from_pandas(df_deflatores)
 pq.write_table(tabela_deflatores, Path(PROCESSED_DATA_PATH) / 'tabela_deflatores.parquet')
 
 # Liberação de memória
-del idx_2021, df_deflator_pib, df_deflator_pib_industria, df_deflator_pib_industria_processado, df_deflator_pib_agropecuaria, df_deflator_pib_agropecuaria_processado, df_deflatores, tabela_deflatores
+del df_deflator_pib, df_deflator_pib_industria, df_deflator_pib_agropecuaria, df_deflatores, tabela_deflatores
 gc.collect()
 
 #_ ## CONCLUSÃO SOBRE A QUALIDADE DOS DADOS DE DEFLATORES PIB ###
@@ -370,21 +249,7 @@ df_pib.rename(columns=
     'Valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social (Mil Reais)': 'va_administracao_corrente'
     }, inplace=True)
 
-# TODO Verificações opcionais
-"""
-print(f'Tipagens das colunas do DataFrame de PIB do IBGE:')
-print(df_pib.dtypes)
-print(f'Número de linhas e colunas: {df_pib.shape}')
-print(f'Exemplo de dados:')
-print(df_pib.head())
-print(f'Número de dados vazios: {np.count_nonzero(df_pib.isna().to_numpy())}')
-print(f'Número de linhas com municípios vazios: {df_pib["local"].isna().sum()}')
-print(f'Número de dados vazios após drop de linhas sem dados numéricos: {np.count_nonzero(df_pib.isna().to_numpy())}')
-print(f'Lista de locais com PIB vazio:')
-print(df_pib[df_pib['pib_corrente'].isna()]['local'].unique())
-"""
-
-# FILTRO DE ANOMALIAS: Substituir pib_corrente negativo por vazio (erro nos dados originais do IBGE)
+# FILTRO DE ANOMALIAS: Substituir pib_corrente negativo por vazio (apenas 1 caso - GUAMARÉ 2012)
 mask_neg = df_pib['pib_corrente'] <= 0
 pib_negativo = df_pib.loc[mask_neg]
 
@@ -405,7 +270,7 @@ df_pib.dropna(subset=['estado'], inplace=True)
 
 #_ ## CONCLUSÃO SOBRE A QUALIDADE DOS DADOS DE PIB DO IBGE ###
 #_ Após verificação, não há dados vazios inconsistentes no DataFrame de PIB do IBGE, o que é um bom sinal para a qualidade dos dados. 
-#_ Havia um caso no município de GUAMARE (RN) em 2002 onde o valor de PIB corrente estava negativo, o que é um erro nos dados originais do IBGE. Este valor foi substituído por vazio (NaN) para evitar distorções nas análises futuras.
+#_ Havia um caso no município de GUAMARE (RN) em 2002 onde o valor de PIB corrente estava negativo. Este valor foi substituído por vazio (NaN) para evitar distorções nas análises futuras.
 #_ As situações de PIB vazio estão associadas a períodos onde 10 municípios ainda não haviam sido criados, o que é compreensível e não indica um problema de qualidade dos dados.
 #_ São eles:
 #_ - AROEIRAS DO ITAIM: 2002, 2003, 2004 
@@ -431,13 +296,6 @@ df_pib.dropna(subset=['estado'], inplace=True)
 # Verificar correspondência entre os municípios das duas bases
 pib_municipios = set(df_pib['local'])
 hab_municipios = set(df_hab['municipio']) 
-
-# TODO Veriricações opcionais
-"""
-print(f'\nCOMPARAÇÃO DE MUNICÍPIOS ENTRE AS BASES (ANTES DA NORMALIZAÇÃO):')
-print(f'FONTE 1 (População) df_hab: {len(df_hab)} locais únicos')
-print(f'FONTE 2 (PIB) df_pib: {len(pib_municipios)} locais únicos')
-"""
 
 # NORMALIZAR TEXTO PARA FACILITAR JUNÇÃO DOS DADOS
 def remover_acentos(texto):
@@ -477,25 +335,6 @@ apenas_hab = hab_municipios - pib_municipios
 apenas_pib = pib_municipios - hab_municipios
 match = hab_municipios & pib_municipios
 
-# TODO Veriricações opcionais
-"""
-print(f'\nCOMPARAÇÃO DE MUNICÍPIOS ENTRE AS BASES (APÓS NORMALIZAÇÃO):')
-print(f'FONTE 1 (População) df_hab: {len(hab_municipios)} locais únicos')
-print(f'FONTE 2 (PIB) df_pib: {len(pib_municipios)} locais únicos')
-print(f'\nMatch entre as bases: {len(match)} locais únicos')
-print(f'Municípios apenas em df_hab (não encontrados no PIB): {len(apenas_hab)}')
-print(f'Municípios apenas em df_pib (não encontrados na População): {len(apenas_pib)}')
-if apenas_hab:
-    print(f"\nMunicípios em df_hab SEM correspondência no PIB:")
-    for municipio, estado in sorted(apenas_hab):
-        print(f"  {municipio} ({estado})")
-
-if apenas_pib:
-    print(f"\nMunicípios em df_pib SEM correspondência na População:")
-    for municipio, estado in sorted(apenas_pib):
-        print(f"  {municipio} ({estado})")
-"""
-
 # ! AJUSTE MANUAL DE CORRESPONDÊNCIAS POR ERRO DE GRAFIA
 # Mapeamento manual - casos com diferença de grafia
 mapeamento_hab = {
@@ -531,29 +370,9 @@ apenas_hab = hab_municipios - pib_municipios
 apenas_pib = pib_municipios - hab_municipios
 match = hab_municipios & pib_municipios
 
-# TODO Veriricações opcionais
-"""
-print(f'\nCOMPARAÇÃO DE MUNICÍPIOS ENTRE AS BASES (APÓS NORMALIZAÇÃO):')
-print(f'FONTE 1 (População) df_hab: {len(hab_municipios)} locais únicos')
-print(f'FONTE 2 (PIB) df_pib: {len(pib_municipios)} locais únicos')
-print(f'\nMatch entre as bases: {len(match)} locais únicos')
-print(f'Municípios apenas em df_hab (não encontrados em df_pib): {len(apenas_hab)}')
-print(f'Municípios apenas em df_pib (não encontrados em df_hab): {len(apenas_pib)}')
-if apenas_hab:
-    print(f"\nMunicípios em df_hab SEM correspondência em df_pib:")
-    for municipio, estado in sorted(apenas_hab):
-        print(f"  {municipio} ({estado})")
-
-if apenas_pib:
-    print(f"\nMunicípios em df_pib SEM correspondência em df_hab:")
-    for municipio, estado in sorted(apenas_pib):
-        print(f"  {municipio} ({estado})")
-"""
-
 #_ ## CONCLUSÃO DOS AJUSTES MANUAIS E CORRESPONDÊNCIA ENTRE AS BASES ###
-#_ Após ajustes manuais, o número de correspondências entre as bases é total
+#_ Após ajustes manuais, o número de correspondências entre as bases é 100%
 #_ Em ambas as bases, existem 5570 municípios únicos e 27 Estados com nomes únicos de correspondência.
-#_ Esta base do IBGE considera convenção antiga de Código de Município com 6 dígitos (sem o digito verificador).
 #_ ##----------------------------------------------------------------###
 
 # ! CRIAR BASE FINAL UNIFICADA
@@ -668,7 +487,7 @@ tabela_final = pa.Table.from_pandas(df_final)
 pq.write_table(tabela_final, Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet', compression='snappy')
 
 # Liberação de memória
-del df_pib, mask_neg, pib_negativo, pib_municipios, hab_municipios, df_hab, apenas_hab, match, mapeamento_hab, mapeamento_condicional, anos_colunas, colunas_id, anos_existentes, df_hab_long, populacao_invalida, df_final, colunas_principais, pib_original_2023, pib_final_2023, pop_original_2023, pop_final_2023, tabela_deflatores, df_deflatores_temp, pib_real_invalido, tabela_final
+del df_pib, mask_neg, pib_negativo, pib_municipios, hab_municipios, df_hab, apenas_hab, apenas_pib, match, mapeamento_hab, mapeamento_condicional, anos_colunas, colunas_id, anos_existentes, df_hab_long, populacao_invalida, df_final, colunas_principais, pib_original_2023, pib_final_2023, pop_original_2023, pop_final_2023, tabela_deflatores, df_deflatores_temp, pib_real_invalido, tabela_final
 gc.collect()
 
 #_ ## CONCLUSÃO DA BASE_PIB_HAB ###
@@ -724,107 +543,79 @@ df_bndes.drop(columns=colunas_existentes_para_drop, inplace=True)
 # Drop de informações fora do período de interesse (2002-2023)
 df_bndes = df_bndes[df_bndes['ano'].isin([str(ano) for ano in range(2002, 2024)])]
 
-# Groupby de desembolsos_corrente para transformar informações mensais em anuais, somando os desembolsos por ano, município, uf
-df_bndes_total = df_bndes.groupby(['ano', 'municipio_codigo', 'municipio', 'uf'], as_index=False)['desembolsos_corrente'].sum()
+# Converter ano para numérico
+df_bndes['ano'] = pd.to_numeric(df_bndes['ano'], errors='coerce')
 
-# TODO Verificações opcionais
-"""
-print(f'\nDataFrame de desembolsos do BNDES:')
-print(f'Número de linhas e colunas: {df_bndes.shape}')
-print(f'Tipagens das colunas:\n{df_bndes.dtypes}')
-print(f'Exemplo de dados:')
-print(df_bndes.head())
-"""
-
-# APLICAR DEFLATORES EM DESEMBOLSOS PARA AJUSTAR DESEMBOLSO CORRENTE PARA VALOR REAL
 # Carregar tabela de deflatores
 tabela_deflatores = pq.read_table(Path(PROCESSED_DATA_PATH) / 'tabela_deflatores.parquet')
 df_deflatores_temp = tabela_deflatores.to_pandas()
 
-# Converter ano para numérico para compatibilidade com merge
-df_bndes_total['ano'] = pd.to_numeric(df_bndes_total['ano'], errors='coerce')
+# CRIAR AGREGAÇÕES POR SETOR ANTES DO MERGE
+# 1. Desembolsos totais (todos os setores)
+df_bndes_total = df_bndes.groupby(['ano', 'municipio_codigo', 'municipio', 'uf'], as_index=False).agg({'desembolsos_corrente': 'sum'})
+df_bndes_total.rename(columns={'desembolsos_corrente': 'desembolsos_total_corrente'}, inplace=True)
 
-# Realizar merge com deflatores usando left_on='ano' e right_on='ano'
-df_bndes_total_deflacionado = pd.merge(
-    df_bndes_total,
-    df_deflatores_temp,
-    left_on='ano',
-    right_on='ano',
-    how='left'
-)
+# 2. Desembolsos industriais (agregado de 4 subsetores)
+df_bndes_industria = df_bndes[df_bndes['setor_cnae'].isin(['INDÚSTRIA DE TRANSFORMAÇÃO', 'INDÚSTRIA EXTRATIVA', 'INDÚSTRIA DE UTILIDADES PÚBLICAS', 'INDÚSTRIA DE CONSTRUÇÃO'])].groupby(['ano', 'municipio_codigo', 'municipio', 'uf'], as_index=False).agg({'desembolsos_corrente': 'sum'})
+df_bndes_industria.rename(columns={'desembolsos_corrente': 'desembolsos_industria_corrente'}, inplace=True)
 
-# Calcular desembolsos reais usando o deflator do PIB geral
-df_bndes_total_deflacionado['desembolsos_real'] = (df_bndes_total_deflacionado['desembolsos_corrente'] * 100) / df_bndes_total_deflacionado['deflator_pib_2021']
-df_bndes_total_deflacionado = df_bndes_total_deflacionado.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021'])
+# 3. Desembolsos agropecuários
+df_bndes_agropecuaria = df_bndes[df_bndes['setor_cnae'].isin(['AGROPECUÁRIA'])].groupby(['ano', 'municipio_codigo', 'municipio', 'uf'], as_index=False).agg({'desembolsos_corrente': 'sum'})
+df_bndes_agropecuaria.rename(columns={'desembolsos_corrente': 'desembolsos_agropecuaria_corrente'}, inplace=True)
 
-# Verificação dos dados deflacionados para todos os setores
-print(f'\nDataFrame de desembolsos do BNDES após consolidação e deflação:')
-print(f'Número de linhas e colunas: {df_bndes_total_deflacionado.shape}')
-print(f'Tipagens das colunas:\n{df_bndes_total_deflacionado.dtypes}')
+# UNIR TODAS AS AGREGAÇÕES EM UM ÚNICO DATAFRAME
+df_bndes_consolidado = df_bndes_total.copy()
 
-# Gerar arquivo Parquet da base de desembolsos do BNDES com pyarrow - todos os setores
-tabela_bndes_total = pa.Table.from_pandas(df_bndes_total_deflacionado)
-pq.write_table(tabela_bndes_total, Path(PROCESSED_DATA_PATH) / 'base_bndes_total.parquet', compression='snappy')
-
-# Groupby de desembolsos_corrente para transformar informações mensais em anuais, somando os desembolsos por ano, município, uf e mantendo abertura apenas por setor_cnae associado à indústria (INDÚSTRIA DE TRANSFORMAÇÃO e INDÚSTRIA EXTRATIVA)
-df_bndes_industria = df_bndes[df_bndes['setor_cnae'].isin(['INDÚSTRIA DE TRANSFORMAÇÃO', 'INDÚSTRIA EXTRATIVA', 'INDÚSTRIA DE UTILIDADES PÚBLICAS', 'INDÚSTRIA DE CONSTRUÇÃO'])].groupby(['ano', 'municipio_codigo', 'municipio', 'uf', 'setor_cnae'], as_index=False)['desembolsos_corrente'].sum()
-
-# Converter ano para numérico para compatibilidade com merge
-df_bndes_industria['ano'] = pd.to_numeric(df_bndes_industria['ano'], errors='coerce')
-
-# Realizar merge com deflatores usando left_on='ano' e right_on='ano'
-df_bndes_industria_deflacionado = pd.merge(
+# Merge com indústria (LEFT para manter todos os registros de total, preenchendo com 0 quando não houver desembolso industrial)
+df_bndes_consolidado = pd.merge(
+    df_bndes_consolidado,
     df_bndes_industria,
-    df_deflatores_temp,
-    left_on='ano',
-    right_on='ano',
+    on=['ano', 'municipio_codigo', 'municipio', 'uf'],
     how='left'
 )
 
-# Calcular desembolsos reais usando o deflator do PIB da indústria
-df_bndes_industria_deflacionado['desembolsos_industria_real'] = (df_bndes_industria_deflacionado['desembolsos_corrente'] * 100) / df_bndes_industria_deflacionado['deflator_pib_industria_2021']
-df_bndes_industria_deflacionado = df_bndes_industria_deflacionado.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021', 'setor_cnae'])
-df_bndes_industria_deflacionado = df_bndes_industria_deflacionado.rename(columns={'desembolsos_corrente': 'desembolsos_industria_corrente'})
-# Verificação dos dados deflacionados para todos os setores
-print(f'\nDataFrame de desembolsos do BNDES para Indústria após consolidação e deflação:')
-print(f'Número de linhas e colunas: {df_bndes_industria_deflacionado.shape}')
-print(f'Tipagens das colunas:\n{df_bndes_industria_deflacionado.dtypes}')
-
-# Gerar arquivo Parquet da base de desembolsos do BNDES com pyarrow - apenas indústria
-tabela_bndes_industria = pa.Table.from_pandas(df_bndes_industria_deflacionado)
-pq.write_table(tabela_bndes_industria, Path(PROCESSED_DATA_PATH) / 'base_bndes_industria.parquet', compression='snappy')
-
-# Groupby de desembolsos_corrente para transformar informações mensais em anuais, somando os desembolsos por ano, município, uf e mantendo abertura apenas por setor_cnae associado à AGROPECUÁRIA (AGROPECUÁRIA)
-df_bndes_agropecuaria = df_bndes[df_bndes['setor_cnae'].isin(['AGROPECUÁRIA'])].groupby(['ano', 'municipio_codigo', 'municipio', 'uf', 'setor_cnae'], as_index=False)['desembolsos_corrente'].sum()
-
-# Converter ano para numérico para compatibilidade com merge
-df_bndes_agropecuaria['ano'] = pd.to_numeric(df_bndes_agropecuaria['ano'], errors='coerce')
-
-# Realizar merge com deflatores usando left_on='ano' e right_on='ano'
-df_bndes_agropecuaria_deflacionado = pd.merge(
+# Merge com agropecuária (LEFT para manter todos os registros, preenchendo com 0 quando não houver desembolso agropecuário)
+df_bndes_consolidado = pd.merge(
+    df_bndes_consolidado,
     df_bndes_agropecuaria,
-    df_deflatores_temp,
-    left_on='ano',
-    right_on='ano',
+    on=['ano', 'municipio_codigo', 'municipio', 'uf'],
     how='left'
 )
 
-# Calcular desembolsos reais usando o deflator do PIB da agropecuária
-df_bndes_agropecuaria_deflacionado['desembolsos_agropecuaria_real'] = (df_bndes_agropecuaria_deflacionado['desembolsos_corrente'] * 100) / df_bndes_agropecuaria_deflacionado['deflator_pib_agropecuaria_2021']
-df_bndes_agropecuaria_deflacionado = df_bndes_agropecuaria_deflacionado.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021', 'setor_cnae'])
-df_bndes_agropecuaria_deflacionado = df_bndes_agropecuaria_deflacionado.rename(columns={'desembolsos_corrente': 'desembolsos_agropecuaria_corrente'})
+# Preencher NaN com 0 (significa que houve atividade BNDES no município, mas não naquele setor específico)
+df_bndes_consolidado['desembolsos_industria_corrente'] = df_bndes_consolidado['desembolsos_industria_corrente'].fillna(0)
+df_bndes_consolidado['desembolsos_agropecuaria_corrente'] = df_bndes_consolidado['desembolsos_agropecuaria_corrente'].fillna(0)
 
-# Verificação dos dados deflacionados para todos os setores
-print(f'\nDataFrame de desembolsos do BNDES para Agropecuária após consolidação e deflação:')
-print(f'Número de linhas e colunas: {df_bndes_agropecuaria_deflacionado.shape}')
-print(f'Tipagens das colunas:\n{df_bndes_agropecuaria_deflacionado.dtypes}')
+# APLICAR DEFLATORES
+df_bndes_consolidado = pd.merge(
+    df_bndes_consolidado,
+    df_deflatores_temp,
+    on='ano',
+    how='left'
+)
 
-# Gerar arquivo Parquet da base de desembolsos do BNDES com pyarrow - apenas agropecuária
-tabela_bndes_agropecuaria = pa.Table.from_pandas(df_bndes_agropecuaria_deflacionado)
-pq.write_table(tabela_bndes_agropecuaria, Path(PROCESSED_DATA_PATH) / 'base_bndes_agropecuaria.parquet', compression='snappy')
+# Calcular valores reais com deflatores específicos
+df_bndes_consolidado['desembolsos_real'] = (df_bndes_consolidado['desembolsos_total_corrente'] * 100) / df_bndes_consolidado['deflator_pib_2021']
+df_bndes_consolidado['desembolsos_industria_real'] = (df_bndes_consolidado['desembolsos_industria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_industria_2021']
+df_bndes_consolidado['desembolsos_agropecuaria_real'] = (df_bndes_consolidado['desembolsos_agropecuaria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_agropecuaria_2021']
+
+# Remover colunas de deflatores e renomear
+df_bndes_consolidado = df_bndes_consolidado.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021'])
+df_bndes_consolidado = df_bndes_consolidado.rename(columns={'desembolsos_total_corrente': 'desembolsos_corrente'})
+
+# Verificação dos dados consolidados
+print(f'\nDataFrame consolidado de desembolsos do BNDES após deflação:')
+print(f'Número de linhas e colunas: {df_bndes_consolidado.shape}')
+print(f'Tipagens das colunas:\n{df_bndes_consolidado.dtypes}')
+print(f'\nEstatísticas descritivas:')
+print(df_bndes_consolidado[['desembolsos_real', 'desembolsos_industria_real', 'desembolsos_agropecuaria_real']].describe())
+
+# Gerar arquivos parquet 
+tabela_bndes_consolidado = pa.Table.from_pandas(df_bndes_consolidado)
+pq.write_table(tabela_bndes_consolidado, Path(PROCESSED_DATA_PATH) / 'base_bndes.parquet', compression='snappy')
 
 # Liberação de memória
-del df_bndes, linhas_reclassificadas, colunas_para_drop, colunas_existentes_para_drop, df_bndes_total, tabela_deflatores, df_bndes_total_deflacionado, tabela_bndes_total, df_bndes_agropecuaria, df_bndes_agropecuaria_deflacionado, tabela_bndes_agropecuaria
+del df_bndes, linhas_reclassificadas, colunas_para_drop, colunas_existentes_para_drop, df_bndes_total, df_bndes_industria, df_bndes_agropecuaria, tabela_deflatores, df_deflatores_temp, df_bndes_consolidado, tabela_bndes_consolidado
 gc.collect()
 
 #_ ## CONCLUSÃO SOBRE A QUALIDADE DOS DADOS DE DESEMBOLSO DO BNDES ###
@@ -837,62 +628,21 @@ gc.collect()
 #_ No arquivo base_bndes_total.parquet, os desembolsos foram ajustados utilizando o deflator do PIB geral, enquanto no arquivo base_bndes_industria.parquet, os desembolsos foram ajustados utilizando o deflator específico do PIB industrial.
 #_ O código de município usado pelo BNDES é o formato atual oficial de 7 dígitos (com o dígito verificador), enquanto o código de município presente na base do IBGE é o formato antigo de 6 dígitos (sem o dígito verificador).
 #_##--------------------------------------------------------------###
-# %% VERIFICAR SE TODOS OS PARQUETS POSSUEM DADOS SUFICIENTES EM SEUS ANOS
-# TODO Verificações opcionais para garantir que os arquivos Parquet gerados possuem dados suficientes em seus anos
-"""
-# Verificar anos disponíveis em base_pib_hab.parquet
-tabela_pib_hab = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet')
-df_pib_hab = tabela_pib_hab.to_pandas()
-print(f'\nAnos disponíveis em base_pib_hab.parquet: {sorted(df_pib_hab["ano"].unique())}')
-print(f'Total do PIB por ano em base_pib_hab.parquet:')
-print(df_pib_hab.groupby('ano')['pib_corrente'].sum())
-print(f'Total da população por ano em base_pib_hab.parquet:')
-print(df_pib_hab.groupby('ano')['populacao'].sum())
-print(f'------------------------------------------------')
-
-# Verificar anos disponíveis em base_bndes_total.parquet
-tabela_bndes_total = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_total.parquet')
-df_bndes_total = tabela_bndes_total.to_pandas()
-print(f'\nAnos disponíveis em base_bndes_total.parquet: {sorted(df_bndes_total["ano"].unique())}')
-print(f'Total de desembolsos por ano em base_bndes_total.parquet:')
-print(df_bndes_total.groupby('ano')['desembolsos_corrente'].sum())
-print(f'------------------------------------------------')
-
-# Verificar anos disponíveis em base_bndes_industria.parquet
-tabela_bndes_industria = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_industria.parquet')
-df_bndes_industria = tabela_bndes_industria.to_pandas()
-print(f'\nAnos disponíveis em base_bndes_industria.parquet: {sorted(df_bndes_industria["ano"].unique())}')
-print(f'Total de desembolsos por ano em base_bndes_industria.parquet:')
-print(df_bndes_industria.groupby('ano')['desembolsos_corrente'].sum())
-print(f'------------------------------------------------')
-
-# Verificar anos disponíveis em base_bndes_agropecuaria.parquet
-tabela_bndes_agropecuaria = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_agropecuaria.parquet')
-df_bndes_agropecuaria = tabela_bndes_agropecuaria.to_pandas()
-print(f'\nAnos disponíveis em base_bndes_agropecuaria.parquet: {sorted(df_bndes_agropecuaria["ano"].unique())}')
-print(f'Total de desembolsos por ano em base_bndes_agropecuaria.parquet:')
-print(df_bndes_agropecuaria.groupby('ano')['desembolsos_corrente'].sum())
-print(f'------------------------------------------------')
-
-# Liberação de memória
-del tabela_pib_hab, df_pib_hab, tabela_bndes_total, df_bndes_total, tabela_bndes_industria, df_bndes_industria, tabela_bndes_agropecuaria, df_bndes_agropecuaria
-gc.collect()
-"""
-# %% PAINEL DE DADOS 1 - MODELO 1 - PIB real e desembolsos do BNDES (nível município-ano)
-# ANÁLISE 1: MODELO PRINCIPAL - Evolução do PIB real ao longo do tempo em respeito aos desembolsos do BNDES para cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
+# %% PAINEL DE DADOS (nível município-ano)
+# PAINEL DE DADOS PARA ANÁLISE (nível município-ano)
 
 # Carregar arquivos parquet para análise
 tabela_pib_hab = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet')
 df_pib_hab = tabela_pib_hab.to_pandas()
 
-tabela_bndes_total = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_total.parquet')
-df_bndes_total = tabela_bndes_total.to_pandas()
+tabela_bndes = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes.parquet')
+df_bndes = tabela_bndes.to_pandas()
 
 # Preparar df_pib_hab: selecionar colunas relevantes para merge
 df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real']].copy()
 
-# Preparar df_bndes_total: renomear 'municipio_codigo' e 'ano' para compatibilidade
-df_bndes_merge = df_bndes_total[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_corrente', 'desembolsos_real']].copy()
+# Preparar df_bndes: renomear 'municipio_codigo' e 'ano' para compatibilidade
+df_bndes_merge = df_bndes[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_industria_corrente', 'desembolsos_industria_real', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real']].copy()
 df_bndes_merge.rename(columns={'municipio_codigo': 'codigo'}, inplace=True)
 
 # Converter para string para garantir compatibilidade no merge
@@ -919,11 +669,17 @@ df_bndes_merge['uf'] = df_bndes_merge['uf'].map(estado_map).astype('string')
 df_bndes_merge['codigo'] = df_bndes_merge['codigo'].str[:6]
 
 # Agregar desembolsos por Código + uf + Ano antes do merge
-df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False)[
-    ['municipio', 'desembolsos_corrente', 'desembolsos_real']
-].sum()
+df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False).agg({
+    'municipio': 'first',
+    'desembolsos_corrente': 'sum',
+    'desembolsos_real': 'sum',
+    'desembolsos_industria_corrente': 'sum',
+    'desembolsos_industria_real': 'sum',
+    'desembolsos_agropecuaria_corrente': 'sum',
+    'desembolsos_agropecuaria_real': 'sum'
+})
 
-# LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes_total quando houver correspondência
+# LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes quando houver correspondência
 # Usar Código + Estado/uf + Ano como chaves de junção
 df_painel1 = pd.merge(
     df_pib_merge,
@@ -937,6 +693,10 @@ df_painel1 = pd.merge(
 # Preencher valores de desembolso com zero onde não houver correspondência
 df_painel1['desembolsos_real'] = df_painel1['desembolsos_real'].fillna(0)
 df_painel1['desembolsos_corrente'] = df_painel1['desembolsos_corrente'].fillna(0)
+df_painel1['desembolsos_industria_real'] = df_painel1['desembolsos_industria_real'].fillna(0)
+df_painel1['desembolsos_industria_corrente'] = df_painel1['desembolsos_industria_corrente'].fillna(0)
+df_painel1['desembolsos_agropecuaria_real'] = df_painel1['desembolsos_agropecuaria_real'].fillna(0)
+df_painel1['desembolsos_agropecuaria_corrente'] = df_painel1['desembolsos_agropecuaria_corrente'].fillna(0)
 
 # Consolidar coluna de município: usar municipio_pib quando disponível, caso contrário usar municipio_bndes
 df_painel1['municipio'] = df_painel1['municipio_pib'].fillna(df_painel1['municipio_bndes'])
@@ -962,42 +722,43 @@ print(f'\nTotal de PIB real no DataFrame de análise: {total_pib_real_analise:,.
 print(f'Total de PIB real na base do IBGE: {total_pib_real_ibge:,.2f} (Mil Reais)')
 print(f'Diferença (análise - IBGE): {total_pib_real_analise - total_pib_real_ibge:,.2f} (Mil Reais)')
 
-# verificar o número de municípios-estados únicos em 2023
-municipios_estados_2023 = df_painel1[df_painel1['ano'] == '2023'][['codigo', 'estado']].drop_duplicates()
-print(f'\nNúmero de municípios-estados únicos em 2023: {municipios_estados_2023.shape[0]}')
-print(f'Número de municípios-estados únicos em 2023 com desembolsos > 0: {df_painel1[(df_painel1["ano"] == "2023") & (df_painel1["desembolsos_real"] > 0)].shape[0]}')
-
-# verificar se o total de população no DataFrame de análise é igual ao total de população na base do IBGE
-total_populacao_analise = df_painel1['populacao'].sum()
-total_populacao_ibge = df_pib_merge['populacao'].sum()
-print(f'\nTotal de população no DataFrame de análise: {total_populacao_analise:,.0f} habitantes')
-print(f'Total de população na base do IBGE: {total_populacao_ibge:,.0f} habitantes')
-print(f'Diferença (análise - IBGE): {total_populacao_analise - total_populacao_ibge:,.0f} habitantes')
-
 # Garantir ordenação por código, estado e ano para cálculo correto de diferenças
 df_painel1['ano'] = pd.to_numeric(df_painel1['ano'], errors='coerce')
 df_painel1 = df_painel1.sort_values(by=['codigo', 'estado', 'ano'])
 
-# Calcular variável log_pib_real e variável dependente Y = delta_log_pib_real em estrutura LONG
+# Calcular variável em função do pib e valor adicionado para indústria e agropecuária, além de suas diferenças (delta) ano a ano
 df_painel1['log_pib_real'] = np.log(df_painel1['pib_real'])
+df_painel1['asinh_va_industria_real'] = np.arcsinh(df_painel1['va_industria_real'])
+df_painel1['asinh_va_agropecuaria_real'] = np.arcsinh(df_painel1['va_agropecuaria_real'])
 df_painel1['delta_log_pib_real'] = df_painel1.groupby(['codigo', 'estado'])['log_pib_real'].diff(1)
+df_painel1['delta_asinh_va_industria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_industria_real'].diff())
+df_painel1['delta_asinh_va_agropecuaria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_agropecuaria_real'].diff())
+df_painel1['pibpc_real'] = df_painel1['pib_real'] / df_painel1['populacao']
+df_painel1['log_pibpc_real'] = np.log(df_painel1['pibpc_real'])
+df_painel1['delta_log_pibpc_real'] = df_painel1.groupby(['codigo', 'estado'])['log_pibpc_real'].diff(1)
 
-# Calcular variável independente X = share_desembolso_real_pib_real_ano_anterior
-# ! variável sem log, shift apenas no denominador (t-1, com fallback para t-2)
+
+# Calcular pib_real com lag
 pib_lag1 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(1)
 pib_lag2 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(2)
 
-# ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2
-# Ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012
+# ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2 (ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012)
 pib_lag = pib_lag1.copy()
 mask_usar_lag2 = (pib_lag1.isna()) | (pib_lag1 == 0)
 pib_lag[mask_usar_lag2] = pib_lag2[mask_usar_lag2]
 
+# Calcular variáveis de  share_desembolso_real em relação aos seus temas e em razão do pib_real_ano_anterior
 df_painel1['share_desembolso_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real'] / pib_lag)
+df_painel1['share_desembolso_industria_real_ano_anterior'] = (df_painel1['desembolsos_industria_real'] / pib_lag)
+df_painel1['share_desembolso_agropecuaria_real_ano_anterior'] = (df_painel1['desembolsos_agropecuaria_real'] / pib_lag)
+df_painel1['share_desembolso_pc_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real'] / df_painel1['populacao'] / pib_lag) # desembolso per capita
 
-# Calcular variáveis lag 1--3 da variável independente X
+# Calcular variáveis lag 1--3 das variáveis acima
 for lag in range(1, 4):
     df_painel1[f'share_desembolso_real_pib_real_ano_anterior_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['share_desembolso_real_pib_real_ano_anterior'].shift(lag)
+    df_painel1[f'share_desembolso_industria_real_ano_anterior_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['share_desembolso_industria_real_ano_anterior'].shift(lag)
+    df_painel1[f'share_desembolso_agropecuaria_real_ano_anterior_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['share_desembolso_agropecuaria_real_ano_anterior'].shift(lag)
+    df_painel1[f'share_desembolso_pc_real_pib_real_ano_anterior_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['share_desembolso_pc_real_pib_real_ano_anterior'].shift(lag)
 
 # Calcular variáveis de controle: log_populacao_lag1, log_pibpc_real_lag1 e share_industria_lag1 (ou seja, em t-1)
 df_painel1['log_populacao'] = np.log(df_painel1['populacao'])
@@ -1030,639 +791,50 @@ for index, row in municipios_incompletos.iterrows():
     print(f'Código: {row["codigo"]}, Município: {row["municipio"]}, Estado: {row["estado"]}, Anos disponíveis: {row["ano"]}')
 # NOTA: Municípios com menos de 22 anos de dados correspondem a municípios criados ao longo da série histórica
 
-# Reordenar colunas para facilitar conferência e análise
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'log_pib_real', 'delta_log_pib_real', 'desembolsos_corrente', 'desembolsos_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'va_industria_corrente', 'va_industria_real', 'share_industria', 'share_industria_lag1', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'share_agropecuaria', 'share_agropecuaria_lag1']
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel1.columns]
-df_painel1 = df_painel1[colunas_reordenadas_existentes]
-
-# MODELO COMPLEMENTAR - Robustez - Evolução do PIB real ao longo do tempo em respeito aos desembolsos do BNDES para cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
-# Inseridas leads da variável independente para análise de efeitos antecipados
-
-# Carregar arquivos parquet para análise
-df_painel1c = df_painel1.copy()  # Usar o painel1 já preparado como base para painel1c, que é o modelo complementar com leads
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel1c['ano'] = pd.to_numeric(df_painel1c['ano'], errors='coerce')
-df_painel1c = df_painel1c.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável independente lead (xt+1) e (xt+2)
+# Calcular variável independente lead (Xt+1) e (Xt+2)
 # ! variável sem log, shift no numerador para ano futuro
-df_painel1c.loc[df_painel1c['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
-pib_t = df_painel1c['pib_real']  # PIB_t
-pib_tp1 = df_painel1c.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
-desemb_tp1 = df_painel1c.groupby(['codigo','estado'])['desembolsos_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2 = df_painel1c.groupby(['codigo','estado'])['desembolsos_real'].shift(-2) # Desemb_{t+2}
+df_painel1.loc[df_painel1['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
+pib_t = df_painel1['pib_real']  # PIB_t
+pib_tp1 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
+desemb_tp1 = df_painel1.groupby(['codigo','estado'])['desembolsos_real'].shift(-1) # Desemb_{t+1}
+desemb_tp2 = df_painel1.groupby(['codigo','estado'])['desembolsos_real'].shift(-2) # Desemb_{t+2}
+desemb_tp1_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-1) # Desemb_{t+1}
+desemb_tp2_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-2) # Desemb_{t+2}
+desemb_tp1_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-1) # Desemb_{t+1}
+desemb_tp2_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-2) # Desemb_{t+2}
 
-df_painel1c['share_desembolso_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
-df_painel1c['share_desembolso_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'log_pib_real', 'delta_log_pib_real', 'desembolsos_corrente', 'desembolsos_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_real_pib_real_ano_anterior_lead1', 'share_desembolso_real_pib_real_ano_anterior_lead2', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'va_industria_corrente', 'va_industria_real', 'share_industria', 'share_industria_lag1', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'share_agropecuaria', 'share_agropecuaria_lag1']
-
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel1c.columns]
-df_painel1c_final = df_painel1c[colunas_reordenadas_existentes]
+df_painel1['share_desembolso_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
+df_painel1['share_desembolso_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
+df_painel1['share_desembolso_industria_real_pib_real_ano_anterior_lead1'] = desemb_tp1_ind / pib_t
+df_painel1['share_desembolso_industria_real_pib_real_ano_anterior_lead2'] = desemb_tp2_ind / pib_tp1
+df_painel1['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1'] = desemb_tp1_agro / pib_t
+df_painel1['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2'] = desemb_tp2_agro / pib_tp1
 
 # Verificação final do DataFrame de análise com tipos de dados
-print(f'\nDataFrame Painel 1 (antes do drop de NA):')
+print(f'\nDataFrame Painel (antes do drop de NA):')
 print(f'Número de linhas e colunas: {df_painel1.shape}')
 print(f'Menor e maior ano disponíveis após drop de NA: {df_painel1["ano"].min()} - {df_painel1["ano"].max()}')
 
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
+# Realizar o drop de registros NA (devido a lags e leads) e comparar quantidade de informações perdidas nas pontas
 df_painel1_final = df_painel1.dropna()
 
-print(f'\nDataFrame Painel 1 após drop de NA (devido a lags):')
+print(f'\nDataFrame Painel após drop de NA (devido a lags e leads):')
 print(f'Número de linhas eliminadas: {df_painel1.shape[0] - df_painel1_final.shape[0]}, equivalente a {((df_painel1.shape[0] - df_painel1_final.shape[0]) / df_painel1.shape[0]) * 100:.2f}% do total de linhas')
 print(f'Menor e maior ano disponíveis após drop de NA: {df_painel1_final["ano"].min()} - {df_painel1_final["ano"].max()}')
+
+print(f'Tipagens das colunas (1C):\n{df_painel1_final.dtypes}')
 
 tabela_analise_final = pa.Table.from_pandas(df_painel1_final)
 pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel1.parquet', compression='snappy')
 
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel1c_final = df_painel1c_final.dropna()
-
-print(f'\nDataFrame Painel 1C após drop de NA (devido a lags e leads):')
-print(f'Número de linhas eliminadas: {df_painel1c_final.shape[0] - df_painel1.shape[0]}, equivalente a {((df_painel1c_final.shape[0] - df_painel1.shape[0]) / df_painel1.shape[0]) * 100:.2f}% do total de linhas do painel 1 original.')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel1c_final["ano"].min()} - {df_painel1c_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel1c_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel1c.parquet', compression='snappy')
-
-print(f'Tipagens das colunas (1C):\n{df_painel1c_final.dtypes}')
-
-# TODO Verificações opcionais para garantir que o painel de análise 1 possui dados suficientes para o período de 2006-2021
-"""
-df_painel1_final['ano'] = df_painel1_final['ano'].astype('string')
-anos_disponiveis = sorted(df_painel1_final['ano'].dropna().unique())
-print(f'\nAnos disponíveis no painel de análise 1: {anos_disponiveis}')
-print('Total de linhas por ano no painel de análise 1:')
-print(df_painel1_final['ano'].value_counts().sort_index())
-
-# Tabela de faltantes: municipios-estado nas linhas e anos nas colunas
-anos_periodo = [str(ano) for ano in range(2006, 2022)]
-municipios_estados = df_painel1_final[['codigo', 'municipio', 'estado']].drop_duplicates()
-base_anos = pd.DataFrame({'ano': anos_periodo})
-base_anos['chave'] = 1
-municipios_estados['chave'] = 1
-
-grid = municipios_estados.merge(base_anos, on='chave', how='outer').drop(columns=['chave'])
-presenca = df_painel1_final[['codigo', 'estado', 'ano']].drop_duplicates()
-presenca['tem_dado'] = 'X'
-
-tabela_faltantes = grid.merge(presenca, on=['codigo', 'estado', 'ano'], how='left')
-tabela_faltantes['tem_dado'] = tabela_faltantes['tem_dado'].fillna('')
-
-tabela_pivot = tabela_faltantes.pivot_table(
-    index=['codigo', 'municipio', 'estado'],
-    columns='ano',
-    values='tem_dado',
-    aggfunc='first',
-    fill_value=''
-).reset_index()
-
-tabela_pivot = tabela_pivot[tabela_pivot[anos_periodo].eq('').any(axis=1)]
-
-print('\nTabela de faltantes (apenas municipios-estado com pelo menos 1 ano faltante):')
-if tabela_pivot.empty:
-    print('Nenhum municipio-estado com anos faltantes no periodo 2006-2021.')
-else:
-    max_rows = 50
-    if len(tabela_pivot) > max_rows:
-        print(tabela_pivot.head(max_rows).to_string(index=False))
-        print(f'\nExibindo {max_rows} de {len(tabela_pivot)} linhas.')
-    else:
-        print(tabela_pivot.to_string(index=False))
-
-# identificar municipios-estado com dados incompletos intra-período (2006-2021)
-municipios_estados_incompletos = df_painel1_final.groupby(['codigo', 'estado'])['ano'].nunique().reset_index()
-municipios_estados_incompletos = municipios_estados_incompletos[municipios_estados_incompletos['ano'] < 16]  # 16 anos entre 2006 e 2021
-print(f'\nNúmero de municípios-estados com informações incompletas para o período (2006-2021): {municipios_estados_incompletos.shape[0]}')
-print(f'\nMunicípios-estados com informações incompletas para o período (2006-2021) (amostra):')
-if municipios_estados_incompletos.empty:
-    print('Nenhum município-estado com dados incompletos no período.')
-else:
-    print(municipios_estados_incompletos.head(20).to_string(index=False))
-"""
-
-# Liberação de memória
-del tabela_pib_hab, df_pib_hab, tabela_bndes_total, df_bndes_total, df_pib_merge, df_bndes_merge, estado_map, df_painel1, total_desembolsos_ajustados_analise, total_desembolsos_ajustados_bndes, total_desembolsos_ajustados_bndes_999999, total_pib_real_analise, total_pib_real_ibge, municipios_estados_2023, total_populacao_analise, total_populacao_ibge, pib_lag1, pib_lag2, mask_usar_lag2, colunas_reordenadas, colunas_reordenadas_existentes, df_painel1_final, tabela_analise_final, df_painel1c, df_painel1c_final
-gc.collect()
-
-#_ ## CONCLUSÃO SOBRE PAINEL 1 e 1C ###
+#_ ## CONCLUSÃO SOBRE PAINEL ###
 #_ Variável dependente, independente, lags, leads e controles criadas e consolidadas agrupadas por cada município-estado-ano.
 #_ Período entre 2006-2021. Valores financeiros em MIL REAIS na base 2021 (inclui PIB em mil reais e PIB per capita em mil reais também).
 #_ O código de município permaneceu como 6 dígitos.
 #_ Painel naturalmente desbalanceado, nenhum município-estado perde dados ao longo da série histórica, mas existem casos de criação de municípios.
 #_ ##-------------------------------###
-# %% PAINEL DE DADOS 2 - MODELO 2 - Valor Adicionado Indústria real e desembolsos para setor indústria do BNDES (nível município-ano)
-# ANÁLISE 2: MODELO PRINCIPAL - Evolução do Valor Adicionado Indústria real ao longo do tempo em respeito aos desembolsos do BNDES para setor indústria de cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
-
-# Carregar arquivos parquet para análise
-tabela_pib_hab = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet')
-df_pib_hab = tabela_pib_hab.to_pandas()
-
-tabela_bndes_total = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_industria.parquet')
-df_bndes_total = tabela_bndes_total.to_pandas()
-
-# Preparar df_pib_hab: selecionar colunas relevantes para merge
-df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real']].copy()
-
-# Preparar df_bndes_total: renomear 'municipio_codigo' e 'ano' para compatibilidade
-df_bndes_merge = df_bndes_total[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_industria_corrente', 'desembolsos_industria_real']].copy()
-df_bndes_merge.rename(columns={'municipio_codigo': 'codigo'}, inplace=True)
-
-# Converter para string para garantir compatibilidade no merge
-df_pib_merge['codigo'] = df_pib_merge['codigo'].astype('string')
-df_pib_merge['ano'] = df_pib_merge['ano'].astype('string')
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].astype('string')
-df_bndes_merge['ano'] = df_bndes_merge['ano'].astype('string')
-
-# Mapa de conversão: nome completo do estado -> sigla (para compatibilidade com PIB)
-estado_map = {
-    'RONDONIA': 'RO', 'ACRE': 'AC', 'AMAZONAS': 'AM', 'RORAIMA': 'RR', 'PARA': 'PA', 
-    'AMAPA': 'AP', 'TOCANTINS': 'TO', 'MARANHAO': 'MA', 'PIAUI': 'PI', 'CEARA': 'CE', 
-    'RIO GRANDE DO NORTE': 'RN', 'PARAIBA': 'PB', 'PERNAMBUCO': 'PE', 'ALAGOAS': 'AL', 
-    'SERGIPE': 'SE', 'BAHIA': 'BA', 'MINAS GERAIS': 'MG', 'ESPIRITO SANTO': 'ES', 
-    'RIO DE JANEIRO': 'RJ', 'SAO PAULO': 'SP', 'PARANA': 'PR', 'SANTA CATARINA': 'SC', 
-    'RIO GRANDE DO SUL': 'RS', 'MATO GROSSO DO SUL': 'MS', 'MATO GROSSO': 'MT', 
-    'GOIAS': 'GO', 'DISTRITO FEDERAL': 'DF'
-}
-
-# Converter UF do BNDES para sigla
-df_bndes_merge['uf'] = df_bndes_merge['uf'].map(estado_map).astype('string')
-
-# Extrair primeiros 6 dígitos do código BNDES (drop do dígito verificador) para compatibilidade com código do IBGE
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].str[:6]
-
-# Agregar desembolsos por Código + uf + Ano antes do merge
-df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False)[
-    ['municipio', 'desembolsos_industria_corrente', 'desembolsos_industria_real']
-].sum()
-
-# LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes_total quando houver correspondência
-# Usar Código + Estado/uf + Ano como chaves de junção
-df_painel2 = pd.merge(
-    df_pib_merge,
-    df_bndes_merge,
-    left_on=['codigo', 'estado', 'ano'],
-    right_on=['codigo', 'uf', 'ano'],
-    how='left',
-    suffixes=('_pib', '_bndes')
-)
-
-# Preencher valores de desembolso com zero onde não houver correspondência
-df_painel2['desembolsos_industria_real'] = df_painel2['desembolsos_industria_real'].fillna(0)
-df_painel2['desembolsos_industria_corrente'] = df_painel2['desembolsos_industria_corrente'].fillna(0)
-
-# Consolidar coluna de município: usar municipio_pib quando disponível, caso contrário usar municipio_bndes
-df_painel2['municipio'] = df_painel2['municipio_pib'].fillna(df_painel2['municipio_bndes'])
-
-# Remover colunas redundantes
-df_painel2.drop(columns=['uf', 'municipio_pib', 'municipio_bndes'], inplace=True)
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel2['ano'] = pd.to_numeric(df_painel2['ano'], errors='coerce')
-df_painel2 = df_painel2.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável asinh_va_industria_real e variável dependente Y = delta asinh_va_industria_real em estrutura LONG
-df_painel2['asinh_va_industria_real'] = np.arcsinh(df_painel2['va_industria_real'])
-df_painel2['delta_asinh_va_industria_real'] = (df_painel2.groupby(['codigo', 'estado'])['asinh_va_industria_real'].diff())
-
-# Calcular variável independente X = share_desembolso_real_pib_real_ano_anterior
-# ! variável sem log, shift apenas no denominador (t-1, com fallback para t-2)
-pib_lag1 = df_painel2.groupby(['codigo','estado'])['pib_real'].shift(1)
-pib_lag2 = df_painel2.groupby(['codigo','estado'])['pib_real'].shift(2)
-
-# ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2
-# Ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012
-pib_lag = pib_lag1.copy()
-mask_usar_lag2 = (pib_lag1.isna()) | (pib_lag1 == 0)
-pib_lag[mask_usar_lag2] = pib_lag2[mask_usar_lag2]
-
-df_painel2['share_desembolso_industria_real_ano_anterior'] = (df_painel2['desembolsos_industria_real'] / pib_lag)
-
-# Calcular variáveis lag 1--3 da variável independente X
-for lag in range(1, 4):
-    df_painel2[f'share_desembolso_industria_real_ano_anterior_lag{lag}'] = df_painel2.groupby(['codigo','estado'])['share_desembolso_industria_real_ano_anterior'].shift(lag)
-
-# Calcular variáveis de controle: log_populacao_lag1, log_pibpc_real_lag1 e share_industria_lag1 (ou seja, em t-1)
-df_painel2['log_populacao'] = np.log(df_painel2['populacao'])
-df_painel2['log_populacao_lag1'] = df_painel2.groupby(['codigo','estado'])['log_populacao'].shift(1)
-df_painel2['pibpc_real'] = df_painel2['pib_real'] / df_painel2['populacao']
-df_painel2['log_pibpc_real'] = np.log(df_painel2['pibpc_real'])
-df_painel2['log_pibpc_real_lag1'] = df_painel2.groupby(['codigo','estado'])['log_pibpc_real'].shift(1)
-df_painel2['share_industria'] = df_painel2['va_industria_real'] / df_painel2['pib_real']
-df_painel2['share_industria_lag1'] = df_painel2.groupby(['codigo','estado'])['share_industria'].shift(1)
-df_painel2['share_agropecuaria'] = df_painel2['va_agropecuaria_real'] / df_painel2['pib_real']
-df_painel2['share_agropecuaria_lag1'] = df_painel2.groupby(['codigo','estado'])['share_agropecuaria'].shift(1)
-
-# Reordenar colunas para facilitar conferência e análise
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real','asinh_va_industria_real', 'delta_asinh_va_industria_real', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_industria_corrente', 'desembolsos_industria_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_industria_real_ano_anterior', 'share_desembolso_industria_real_ano_anterior_lag1', 'share_desembolso_industria_real_ano_anterior_lag2', 'share_desembolso_industria_real_ano_anterior_lag3', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'share_industria', 'share_industria_lag1', 'share_agropecuaria', 'share_agropecuaria_lag1']
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel2.columns]
-df_painel2 = df_painel2[colunas_reordenadas_existentes]
-
-# MODELO COMPLEMENTAR - Robustez - Evolução do Valor Adicionado para Indústria real ao longo do tempo em respeito aos desembolsos do BNDES para o setor indústria de cada município (efeito regional) - valores constantes de 2023 (MIL REAIS)
-# Inseridas leads da variável independente para análise de efeitos antecipados
-
-# Carregar arquivos parquet para análise
-df_painel2c = df_painel2.copy()  # Usar o painel2 já preparado como base para painel2c, que é o modelo complementar com leads
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel2c['ano'] = pd.to_numeric(df_painel2c['ano'], errors='coerce')
-df_painel2c = df_painel2c.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável independente lead (xt+1) e (xt+2)
-# ! variável sem log, shift no numerador para ano futuro
-df_painel2c.loc[df_painel2c['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
-pib_t = df_painel2c['pib_real']  # PIB_t
-pib_tp1 = df_painel2c.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
-desemb_tp1 = df_painel2c.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2 = df_painel2c.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-2) # Desemb_{t+2}
-
-df_painel2c['share_desembolso_industria_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
-df_painel2c['share_desembolso_industria_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real','asinh_va_industria_real', 'delta_asinh_va_industria_real', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_industria_corrente', 'desembolsos_industria_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_industria_real_ano_anterior', 'share_desembolso_industria_real_ano_anterior_lag1', 'share_desembolso_industria_real_ano_anterior_lag2', 'share_desembolso_industria_real_ano_anterior_lag3', 'share_desembolso_industria_real_pib_real_ano_anterior_lead1', 'share_desembolso_industria_real_pib_real_ano_anterior_lead2', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'share_industria', 'share_industria_lag1', 'share_agropecuaria', 'share_agropecuaria_lag1']
-
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel2c.columns]
-df_painel2c_final = df_painel2c[colunas_reordenadas_existentes]
-
-# Verificação final do DataFrame PAINEL 2 de análise com tipos de dados
-print(f'\nDataFrame Painel 2 (antes do drop de NA):')
-print(f'Número de linhas e colunas: {df_painel2.shape}')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel2["ano"].min()} - {df_painel2["ano"].max()}')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel2_final = df_painel2.dropna()
-
-print(f'\nDataFrame Painel 2 após drop de NA (devido a lags):')
-print(f'Número de linhas eliminadas: {df_painel2.shape[0] - df_painel2_final.shape[0]}, equivalente a {((df_painel2.shape[0] - df_painel2_final.shape[0]) / df_painel2.shape[0]) * 100:.2f}% do total de linhas')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel2_final["ano"].min()} - {df_painel2_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel2_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel2.parquet', compression='snappy')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel2c_final = df_painel2c_final.dropna()
-
-print(f'\nDataFrame Painel 2C após drop de NA (devido a lags):')
-print(f'Número de linhas eliminadas: {df_painel2c_final.shape[0] - df_painel2.shape[0]}, equivalente a {((df_painel2c_final.shape[0] - df_painel2.shape[0]) / df_painel2.shape[0]) * 100:.2f}% do total de linhas do painel 1 original.')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel2c_final["ano"].min()} - {df_painel2c_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel2c_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel2c.parquet', compression='snappy')
-
-print(f'Tipagens das colunas (2C):\n{df_painel2c_final.dtypes}')
 
 # Liberação de memória
-del colunas_reordenadas, colunas_reordenadas_existentes, tabela_analise_final, df_painel2c, df_painel2c_final, tabela_pib_hab, df_pib_hab, tabela_bndes_total, df_bndes_total, df_pib_merge, df_bndes_merge, estado_map, df_painel2, pib_lag1, pib_lag2, mask_usar_lag2, df_painel2_final
+del tabela_pib_hab, df_pib_hab, tabela_bndes, df_bndes, df_pib_merge, df_bndes_merge, estado_map, df_painel1, total_desembolsos_ajustados_analise, total_desembolsos_ajustados_bndes, total_desembolsos_ajustados_bndes_999999, total_pib_real_analise, total_pib_real_ibge, pib_lag1, pib_lag2, pib_lag, mask_usar_lag2, municipios_anos, municipios_anos_completo, municipios_incompletos, pib_t, pib_tp1, desemb_tp1, desemb_tp2, desemb_tp1_ind, desemb_tp2_ind, desemb_tp1_agro, desemb_tp2_agro, df_painel1_final, tabela_analise_final
 gc.collect()
-
-#_ ## CONCLUSÃO SOBRE PAINEL 2 e 2C ###
-#_ Variável dependente, independente, lags, leads e controles criadas e consolidadas agrupadas por cada município-estado-ano.
-#_ Período entre 2006-2021. Valores financeiros em MIL REAIS na base 2021 (inclui PIB em mil reais e PIB per capita em mil reais também).
-#_ O código de município permaneceu como 6 dígitos.
-#_ ##-------------------------------###
-# %% PAINEL DE DADOS 3 - MODELO 3 - Valor Adicionado Agropecuária real e desembolsos para setor agropecuário do BNDES (nível município-ano)
-# ANÁLISE 3: MODELO PRINCIPAL - Evolução do Valor Adicionado Agropecuária real ao longo do tempo em respeito aos desembolsos do BNDES para setor agropecuário de cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
-
-# Carregar arquivos parquet para análise
-tabela_pib_hab = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet')
-df_pib_hab = tabela_pib_hab.to_pandas()
-
-tabela_bndes_total = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_agropecuaria.parquet')
-df_bndes_total = tabela_bndes_total.to_pandas()
-
-# Preparar df_pib_hab: selecionar colunas relevantes para merge
-df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real']].copy()
-
-# Preparar df_bndes_total: renomear 'municipio_codigo' e 'ano' para compatibilidade
-df_bndes_merge = df_bndes_total[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real']].copy()
-df_bndes_merge.rename(columns={'municipio_codigo': 'codigo'}, inplace=True)
-
-# Converter para string para garantir compatibilidade no merge
-df_pib_merge['codigo'] = df_pib_merge['codigo'].astype('string')
-df_pib_merge['ano'] = df_pib_merge['ano'].astype('string')
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].astype('string')
-df_bndes_merge['ano'] = df_bndes_merge['ano'].astype('string')
-
-# Mapa de conversão: nome completo do estado -> sigla (para compatibilidade com PIB)
-estado_map = {
-    'RONDONIA': 'RO', 'ACRE': 'AC', 'AMAZONAS': 'AM', 'RORAIMA': 'RR', 'PARA': 'PA', 
-    'AMAPA': 'AP', 'TOCANTINS': 'TO', 'MARANHAO': 'MA', 'PIAUI': 'PI', 'CEARA': 'CE', 
-    'RIO GRANDE DO NORTE': 'RN', 'PARAIBA': 'PB', 'PERNAMBUCO': 'PE', 'ALAGOAS': 'AL', 
-    'SERGIPE': 'SE', 'BAHIA': 'BA', 'MINAS GERAIS': 'MG', 'ESPIRITO SANTO': 'ES', 
-    'RIO DE JANEIRO': 'RJ', 'SAO PAULO': 'SP', 'PARANA': 'PR', 'SANTA CATARINA': 'SC', 
-    'RIO GRANDE DO SUL': 'RS', 'MATO GROSSO DO SUL': 'MS', 'MATO GROSSO': 'MT', 
-    'GOIAS': 'GO', 'DISTRITO FEDERAL': 'DF'
-}
-
-# Converter UF do BNDES para sigla
-df_bndes_merge['uf'] = df_bndes_merge['uf'].map(estado_map).astype('string')
-
-# Extrair primeiros 6 dígitos do código BNDES (drop do dígito verificador) para compatibilidade com código do IBGE
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].str[:6]
-
-# Agregar desembolsos por Código + uf + Ano antes do merge
-df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False)[
-    ['municipio', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real']
-].sum()
-
-# LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes_total quando houver correspondência
-# Usar Código + Estado/uf + Ano como chaves de junção
-df_painel3 = pd.merge(
-    df_pib_merge,
-    df_bndes_merge,
-    left_on=['codigo', 'estado', 'ano'],
-    right_on=['codigo', 'uf', 'ano'],
-    how='left',
-    suffixes=('_pib', '_bndes')
-)
-
-# Preencher valores de desembolso com zero onde não houver correspondência
-df_painel3['desembolsos_agropecuaria_real'] = df_painel3['desembolsos_agropecuaria_real'].fillna(0)
-df_painel3['desembolsos_agropecuaria_corrente'] = df_painel3['desembolsos_agropecuaria_corrente'].fillna(0)
-
-# Consolidar coluna de município: usar municipio_pib quando disponível, caso contrário usar municipio_bndes
-df_painel3['municipio'] = df_painel3['municipio_pib'].fillna(df_painel3['municipio_bndes'])
-
-# Remover colunas redundantes
-df_painel3.drop(columns=['uf', 'municipio_pib', 'municipio_bndes'], inplace=True)
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel3['ano'] = pd.to_numeric(df_painel3['ano'], errors='coerce')
-df_painel3 = df_painel3.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável asinh_va_agropecuaria_real e variável dependente Y = delta asinh_va_agropecuaria_real em estrutura LONG
-df_painel3['asinh_va_agropecuaria_real'] = np.arcsinh(df_painel3['va_agropecuaria_real'])
-df_painel3['delta_asinh_va_agropecuaria_real'] = (df_painel3.groupby(['codigo', 'estado'])['asinh_va_agropecuaria_real'].diff())
-
-# Calcular variável independente X = share_desembolso_real_pib_real_ano_anterior
-# ! variável sem log, shift apenas no denominador (t-1, com fallback para t-2)
-pib_lag1 = df_painel3.groupby(['codigo','estado'])['pib_real'].shift(1)
-pib_lag2 = df_painel3.groupby(['codigo','estado'])['pib_real'].shift(2)
-
-# ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2
-# Ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012
-pib_lag = pib_lag1.copy()
-mask_usar_lag2 = (pib_lag1.isna()) | (pib_lag1 == 0)
-pib_lag[mask_usar_lag2] = pib_lag2[mask_usar_lag2]
-
-df_painel3['share_desembolso_agropecuaria_real_ano_anterior'] = (df_painel3['desembolsos_agropecuaria_real'] / pib_lag)
-
-# Calcular variáveis lag 1--3 da variável independente X
-for lag in range(1, 4):
-    df_painel3[f'share_desembolso_agropecuaria_real_ano_anterior_lag{lag}'] = df_painel3.groupby(['codigo','estado'])['share_desembolso_agropecuaria_real_ano_anterior'].shift(lag)
-
-# Calcular variáveis de controle: log_populacao_lag1, log_pibpc_real_lag1 e share_industria_lag1 (ou seja, em t-1)
-df_painel3['log_populacao'] = np.log(df_painel3['populacao'])
-df_painel3['log_populacao_lag1'] = df_painel3.groupby(['codigo','estado'])['log_populacao'].shift(1)
-df_painel3['pibpc_real'] = df_painel3['pib_real'] / df_painel3['populacao']
-df_painel3['log_pibpc_real'] = np.log(df_painel3['pibpc_real'])
-df_painel3['log_pibpc_real_lag1'] = df_painel3.groupby(['codigo','estado'])['log_pibpc_real'].shift(1)
-df_painel3['share_industria'] = df_painel3['va_industria_real'] / df_painel3['pib_real']
-df_painel3['share_industria_lag1'] = df_painel3.groupby(['codigo','estado'])['share_industria'].shift(1)
-df_painel3['share_agropecuaria'] = df_painel3['va_agropecuaria_real'] / df_painel3['pib_real']
-df_painel3['share_agropecuaria_lag1'] = df_painel3.groupby(['codigo','estado'])['share_agropecuaria'].shift(1)
-
-# Reordenar colunas para facilitar conferência e análise
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'asinh_va_agropecuaria_real', 'delta_asinh_va_agropecuaria_real', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_agropecuaria_real_ano_anterior', 'share_desembolso_agropecuaria_real_ano_anterior_lag1', 'share_desembolso_agropecuaria_real_ano_anterior_lag2', 'share_desembolso_agropecuaria_real_ano_anterior_lag3', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'share_industria', 'share_industria_lag1', 'share_agropecuaria', 'share_agropecuaria_lag1']
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel3.columns]
-df_painel3 = df_painel3[colunas_reordenadas_existentes]
-
-# MODELO COMPLEMENTAR - Robustez - Evolução do Valor Adicionado para Agropecuária real ao longo do tempo em respeito aos desembolsos do BNDES para o setor agropecuária de cada município (efeito regional) - valores constantes de 2023 (MIL REAIS)
-# Inseridas leads da variável independente para análise de efeitos antecipados
-
-# Carregar arquivos parquet para análise
-df_painel3c = df_painel3.copy()  # Usar o painel3 já preparado como base para painel3c, que é o modelo complementar com leads
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel3c['ano'] = pd.to_numeric(df_painel3c['ano'], errors='coerce')
-df_painel3c = df_painel3c.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável independente lead (xt+1) e (xt+2)
-# ! variável sem log, shift no numerador para ano futuro
-df_painel3c.loc[df_painel3c['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
-pib_t = df_painel3c['pib_real']  # PIB_t
-pib_tp1 = df_painel3c.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
-desemb_tp1 = df_painel3c.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2 = df_painel3c.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-2) # Desemb_{t+2}
-
-df_painel3c['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
-df_painel3c['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real','asinh_va_agropecuaria_real', 'delta_asinh_va_agropecuaria_real', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_agropecuaria_real_ano_anterior', 'share_desembolso_agropecuaria_real_ano_anterior_lag1', 'share_desembolso_agropecuaria_real_ano_anterior_lag2', 'share_desembolso_agropecuaria_real_ano_anterior_lag3', 'share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1', 'share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2', 'log_populacao', 'log_populacao_lag1', 'pibpc_real', 'log_pibpc_real', 'log_pibpc_real_lag1', 'share_agropecuaria', 'share_agropecuaria_lag1', 'share_industria', 'share_industria_lag1']
-
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel3c.columns]
-df_painel3c_final = df_painel3c[colunas_reordenadas_existentes]
-
-# Verificação final do DataFrame de análise com tipos de dados
-print(f'\nDataFrame Painel 3 (antes do drop de NA):')
-print(f'Número de linhas e colunas: {df_painel3.shape}')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel3["ano"].min()} - {df_painel3["ano"].max()}')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel3_final = df_painel3.dropna()
-
-print(f'\nDataFrame Painel 3 após drop de NA (devido a lags):')
-print(f'Número de linhas eliminadas: {df_painel3.shape[0] - df_painel3_final.shape[0]}, equivalente a {((df_painel3.shape[0] - df_painel3_final.shape[0]) / df_painel3.shape[0]) * 100:.2f}% do total de linhas')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel3_final["ano"].min()} - {df_painel3_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel3_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel3.parquet', compression='snappy')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel3c_final = df_painel3c_final.dropna()
-
-print(f'\nDataFrame Painel 3C após drop de NA (devido a lags e leads):')
-print(f'Número de linhas eliminadas: {df_painel3c_final.shape[0] - df_painel3.shape[0]}, equivalente a {((df_painel3c_final.shape[0] - df_painel3.shape[0]) / df_painel3.shape[0]) * 100:.2f}% do total de linhas do painel 3c original.')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel3c_final["ano"].min()} - {df_painel3c_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel3c_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel3c.parquet', compression='snappy')
-
-print(f'Tipagens das colunas (3C):\n{df_painel3c_final.dtypes}')
-
-# Liberação de memória
-del colunas_reordenadas, colunas_reordenadas_existentes, tabela_analise_final, tabela_pib_hab, df_pib_hab, tabela_bndes_total, df_bndes_total, df_pib_merge, df_bndes_merge, estado_map, df_painel3, pib_lag1, pib_lag2, mask_usar_lag2, df_painel3_final
-gc.collect()
-
-#_ ## CONCLUSÃO SOBRE PAINEL 3 ###
-#_ Variável dependente, independente, lags, leads e controles criadas e consolidadas agrupadas por cada município-estado-ano.
-#_ Período entre 2006-2021. Valores financeiros em MIL REAIS na base 2021 (inclui PIB em mil reais e PIB per capita em mil reais também).
-#_ O código de município permaneceu como 6 dígitos.
-#_ ##--------------------------###
-
-# %% PAINEL DE DADOS 4 - MODELO 4 - PIB per capita real e desembolsos do BNDES (nível município-ano)
-# ANÁLISE 4: MODELO PRINCIPAL - Evolução do PIB per capita real ao longo do tempo em respeito aos desembolsos do BNDES para cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
-
-# Remontar a base do painel1, de maneira independente
-tabela_pib_hab = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_pib_hab.parquet')
-df_pib_hab = tabela_pib_hab.to_pandas()
-
-tabela_bndes_total = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes_total.parquet')
-df_bndes_total = tabela_bndes_total.to_pandas()
-
-# Preparar df_pib_hab: selecionar colunas relevantes para merge
-df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real']].copy()
-
-# Preparar df_bndes_total: renomear 'municipio_codigo' e 'ano' para compatibilidade
-df_bndes_merge = df_bndes_total[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_corrente', 'desembolsos_real']].copy()
-df_bndes_merge.rename(columns={'municipio_codigo': 'codigo'}, inplace=True)
-
-# Converter para string para garantir compatibilidade no merge
-df_pib_merge['codigo'] = df_pib_merge['codigo'].astype('string')
-df_pib_merge['ano'] = df_pib_merge['ano'].astype('string')
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].astype('string')
-df_bndes_merge['ano'] = df_bndes_merge['ano'].astype('string')
-
-# Mapa de conversão: nome completo do estado -> sigla (para compatibilidade com PIB)
-estado_map = {
-    'RONDONIA': 'RO', 'ACRE': 'AC', 'AMAZONAS': 'AM', 'RORAIMA': 'RR', 'PARA': 'PA', 
-    'AMAPA': 'AP', 'TOCANTINS': 'TO', 'MARANHAO': 'MA', 'PIAUI': 'PI', 'CEARA': 'CE', 
-    'RIO GRANDE DO NORTE': 'RN', 'PARAIBA': 'PB', 'PERNAMBUCO': 'PE', 'ALAGOAS': 'AL', 
-    'SERGIPE': 'SE', 'BAHIA': 'BA', 'MINAS GERAIS': 'MG', 'ESPIRITO SANTO': 'ES', 
-    'RIO DE JANEIRO': 'RJ', 'SAO PAULO': 'SP', 'PARANA': 'PR', 'SANTA CATARINA': 'SC', 
-    'RIO GRANDE DO SUL': 'RS', 'MATO GROSSO DO SUL': 'MS', 'MATO GROSSO': 'MT', 
-    'GOIAS': 'GO', 'DISTRITO FEDERAL': 'DF'
-}
-
-# Converter UF do BNDES para sigla
-df_bndes_merge['uf'] = df_bndes_merge['uf'].map(estado_map).astype('string')
-
-# Extrair primeiros 6 dígitos do código BNDES (drop do dígito verificador) para compatibilidade com código do IBGE
-df_bndes_merge['codigo'] = df_bndes_merge['codigo'].str[:6]
-
-# Agregar desembolsos por Código + uf + Ano antes do merge
-df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False)[
-    ['municipio', 'desembolsos_corrente', 'desembolsos_real']
-].sum()
-
-# LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes_total quando houver correspondência
-# Usar Código + Estado/uf + Ano como chaves de junção
-df_painel4 = pd.merge(
-    df_pib_merge,
-    df_bndes_merge,
-    left_on=['codigo', 'estado', 'ano'],
-    right_on=['codigo', 'uf', 'ano'],
-    how='left',
-    suffixes=('_pib', '_bndes')
-)
-
-# Preencher valores de desembolso com zero onde não houver correspondência
-df_painel4['desembolsos_real'] = df_painel4['desembolsos_real'].fillna(0)
-df_painel4['desembolsos_corrente'] = df_painel4['desembolsos_corrente'].fillna(0)
-
-# Consolidar coluna de município: usar municipio_pib quando disponível, caso contrário usar municipio_bndes
-df_painel4['municipio'] = df_painel4['municipio_pib'].fillna(df_painel4['municipio_bndes'])
-
-# Remover colunas redundantes
-df_painel4.drop(columns=['uf', 'municipio_pib', 'municipio_bndes'], inplace=True)
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel4['ano'] = pd.to_numeric(df_painel4['ano'], errors='coerce')
-df_painel4 = df_painel4.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável log_pib_real e variável dependente Y = delta_log_pib_real em estrutura LONG
-df_painel4['log_pib_real'] = np.log(df_painel4['pib_real'])
-df_painel4['delta_log_pib_real'] = df_painel4.groupby(['codigo', 'estado'])['log_pib_real'].diff(1)
-
-# Calcular variável pibpc_real, log_pibpc_real e variável dependente Y = delta_log_pibpc_real em estrutura LONG
-df_painel4['pibpc_real'] = df_painel4['pib_real'] / df_painel4['populacao']
-df_painel4['log_pibpc_real'] = np.log(df_painel4['pibpc_real'])
-df_painel4['delta_log_pibpc_real'] = df_painel4.groupby(['codigo', 'estado'])['log_pibpc_real'].diff(1)
-
-# Calcular variável independente X = share_desembolso_real_pib_real_ano_anterior
-# ! variável sem log, shift apenas no denominador (t-1, com fallback para t-2)
-pib_lag1 = df_painel4.groupby(['codigo','estado'])['pib_real'].shift(1)
-pib_lag2 = df_painel4.groupby(['codigo','estado'])['pib_real'].shift(2)
-
-# ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2
-# Ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012
-pib_lag = pib_lag1.copy()
-mask_usar_lag2 = (pib_lag1.isna()) | (pib_lag1 == 0)
-pib_lag[mask_usar_lag2] = pib_lag2[mask_usar_lag2]
-
-df_painel4['share_desembolso_real_pib_real_ano_anterior'] = (df_painel4['desembolsos_real'] / pib_lag)
-
-# Calcular variáveis lag 1--3 da variável independente X
-for lag in range(1, 4):
-    df_painel4[f'share_desembolso_real_pib_real_ano_anterior_lag{lag}'] = df_painel4.groupby(['codigo','estado'])['share_desembolso_real_pib_real_ano_anterior'].shift(lag)
-
-# Calcular variáveis de controle: log_populacao_lag1, log_pibpc_real_lag1 e share_industria_lag1 (ou seja, em t-1)
-df_painel4['log_populacao'] = np.log(df_painel4['populacao'])
-df_painel4['log_populacao_lag1'] = df_painel4.groupby(['codigo','estado'])['log_populacao'].shift(1)
-df_painel4['pibpc_real'] = df_painel4['pib_real'] / df_painel4['populacao']
-df_painel4['log_pibpc_real'] = np.log(df_painel4['pibpc_real'])
-df_painel4['log_pibpc_real_lag1'] = df_painel4.groupby(['codigo','estado'])['log_pibpc_real'].shift(1)
-df_painel4['share_industria'] = df_painel4['va_industria_real'] / df_painel4['pib_real']
-df_painel4['share_industria_lag1'] = df_painel4.groupby(['codigo','estado'])['share_industria'].shift(1)
-df_painel4['share_agropecuaria'] = df_painel4['va_agropecuaria_real'] / df_painel4['pib_real']
-df_painel4['share_agropecuaria_lag1'] = df_painel4.groupby(['codigo','estado'])['share_agropecuaria'].shift(1)
-
-    # Reordenar colunas para facilitar conferência e análise
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'log_pib_real', 'delta_log_pib_real', 'pibpc_real', 'log_pibpc_real', 'delta_log_pibpc_real', 'desembolsos_corrente', 'desembolsos_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'log_populacao', 'log_populacao_lag1', 'log_pibpc_real_lag1', 'va_industria_corrente', 'va_industria_real', 'share_industria', 'share_industria_lag1', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'share_agropecuaria', 'share_agropecuaria_lag1']
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel4.columns]
-df_painel4 = df_painel4[colunas_reordenadas_existentes]
-
-# Reordenar colunas para facilitar conferência e análise
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'pibpc_real', 'log_pibpc_real', 'delta_log_pibpc_real', 'desembolsos_corrente', 'desembolsos_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'log_populacao', 'log_populacao_lag1', 'log_pibpc_real_lag1', 'va_industria_corrente', 'va_industria_real', 'share_industria', 'share_industria_lag1', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'share_agropecuaria', 'share_agropecuaria_lag1']
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel4.columns]
-df_painel4 = df_painel4[colunas_reordenadas_existentes]
-
-# MODELO COMPLEMENTAR - Robustez - Evolução do PIB per capita real ao longo do tempo em respeito aos desembolsos do BNDES para cada município (efeito regional) - valores constantes de 2021 (MIL REAIS)
-# Inseridas leads da variável independente para análise de efeitos antecipados
-
-df_painel4c = df_painel4.copy()  # Usar o painel4 já preparado como base para painel4c, que é o modelo complementar com leads
-
-# Garantir ordenação por código, estado e ano para cálculo correto de diferenças
-df_painel4c['ano'] = pd.to_numeric(df_painel4c['ano'], errors='coerce')
-df_painel4c = df_painel4c.sort_values(by=['codigo', 'estado', 'ano'])
-
-# Calcular variável independente lead (xt+1) e (xt+2)
-# ! variável sem log, shift no numerador para ano futuro
-df_painel4c.loc[df_painel4c['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
-pib_t = df_painel4c['pib_real']  # PIB_t
-pib_tp1 = df_painel4c.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
-desemb_tp1 = df_painel4c.groupby(['codigo','estado'])['desembolsos_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2 = df_painel4c.groupby(['codigo','estado'])['desembolsos_real'].shift(-2) # Desemb_{t+2}
-
-df_painel4c['share_desembolso_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
-df_painel4c['share_desembolso_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
-colunas_reordenadas = ['ano', 'codigo', 'municipio', 'estado', 'populacao', 'pib_corrente', 'pib_real', 'pibpc_real', 'log_pibpc_real', 'delta_log_pibpc_real', 'desembolsos_corrente', 'desembolsos_real', 'share_desembolso_real_pib_real_ano_anterior', 'share_desembolso_real_pib_real_ano_anterior_lag1', 'share_desembolso_real_pib_real_ano_anterior_lag2', 'share_desembolso_real_pib_real_ano_anterior_lag3', 'share_desembolso_real_pib_real_ano_anterior_lead1', 'share_desembolso_real_pib_real_ano_anterior_lead2', 'log_populacao', 'log_populacao_lag1', 'log_pibpc_real_lag1', 'va_industria_corrente', 'va_industria_real', 'share_industria', 'share_industria_lag1', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'share_agropecuaria', 'share_agropecuaria_lag1']
-
-colunas_reordenadas_existentes = [col for col in colunas_reordenadas if col in df_painel4c.columns]
-df_painel4c_final = df_painel4c[colunas_reordenadas_existentes]
-
-# Verificação final do DataFrame de análise com tipos de dados
-print(f'\nDataFrame Painel 4 (antes do drop de NA):')
-print(f'Número de linhas e colunas: {df_painel4.shape}')
-print(f'Menor e maior ano disponíveis: {df_painel4["ano"].min()} - {df_painel4["ano"].max()}')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel4_final = df_painel4.dropna()
-
-print(f'\nDataFrame Painel 4 após drop de NA (devido a lags):')
-print(f'Número de linhas eliminadas: {df_painel4_final.shape[0] - df_painel4.shape[0]}, equivalente a {((df_painel4.shape[0] - df_painel4_final.shape[0]) / df_painel4.shape[0]) * 100:.2f}% do total de linhas')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel4_final["ano"].min()} - {df_painel4_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel4_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel4.parquet', compression='snappy')
-
-# Realizar o drop de registros NA (devido a lags) e comparar quantidade de informações perdidas nas pontas
-df_painel4c_final = df_painel4c_final.dropna()
-
-print(f'\nDataFrame Painel 4C após drop de NA (devido a lags e leads):')
-print(f'Número de linhas eliminadas: {df_painel4c_final.shape[0] - df_painel4c.shape[0]}, equivalente a {((df_painel4c_final.shape[0] - df_painel4c.shape[0]) / df_painel4c.shape[0]) * 100:.2f}% do total de linhas')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel4c_final["ano"].min()} - {df_painel4c_final["ano"].max()}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel4c_final)
-pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel4c.parquet', compression='snappy')
-
-print(f'Tipagens das colunas (4C):\n{df_painel4c_final.dtypes}')
-
-# Liberação de memória
-del pib_lag1, pib_lag2, mask_usar_lag2, colunas_reordenadas, colunas_reordenadas_existentes, df_painel4_final, tabela_analise_final, df_painel4c, df_painel4c_final
-gc.collect()
-
-#_ ## CONCLUSÃO SOBRE PAINEL 4 e 4C ###
-#_ Variável dependente, independente, lags, leads e controles criadas e consolidadas agrupadas por cada município-estado-ano.
-#_ Período entre 2006-2021. Valores financeiros em MIL REAIS na base 2021 (inclui PIB em mil reais e PIB per capita em mil reais também).
-#_ O código de município permaneceu como 6 dígitos.
-#_ ##-------------------------------###
 # %%
