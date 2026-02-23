@@ -75,4 +75,93 @@ Isso é útil para sua redação: estatisticamente aparece, mas economicamente �
 
 
 
+TESTE DE HIPOTESE UNILATERAL BETAS ACUMULADOS > 0
+O efeito acumulado é positivo e significativo ao nível de 5% no teste bilateral (p=0,038). Considerando hipótese direcional de efeito positivo, o teste unilateral reforça a evidência.
 
+
+Mas há um teste melhor (mais direto)
+
+O teste mais limpo de contraciclicidade é inverter a regressão:
+
+𝑋
+𝑖
+𝑡
+=
+𝛿
+1
+Δ
+𝑦
+𝑖
+,
+𝑡
+−
+1
++
+𝛿
+2
+Δ
+𝑦
+𝑖
+,
+𝑡
+−
+2
++
+𝛼
+𝑖
++
+𝜆
+𝑡
++
+𝑢
+𝑖
+𝑡
+X
+it
+	​
+
+=δ
+1
+	​
+
+Δy
+i,t−1
+	​
+
++δ
+2
+	​
+
+Δy
+i,t−2
+	​
+
++α
+i
+	​
+
++λ
+t
+	​
+
++u
+it
+	​
+
+
+Se:
+
+𝛿
+1
+<
+0
+δ
+1
+	​
+
+<0
+
+→ crescimento menor no passado → mais desembolso agora
+→ contraciclicidade formalmente demonstrada.
+
+Esse teste é muito mais direto do que interpretar leads.

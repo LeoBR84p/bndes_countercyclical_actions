@@ -465,6 +465,9 @@ df_final = pd.merge(
 df_final['pib_real'] = (df_final['pib_corrente'] * 100) / df_final['deflator_pib_2021']
 df_final['va_industria_real'] = (df_final['va_industria_corrente'] * 100) / df_final['deflator_pib_industria_2021']
 df_final['va_agropecuaria_real'] = (df_final['va_agropecuaria_corrente'] * 100) / df_final['deflator_pib_agropecuaria_2021']
+df_final['va_industria_real_pib'] = (df_final['va_industria_corrente'] * 100) / df_final['deflator_pib_2021']
+df_final['va_agropecuaria_real_pib'] = (df_final['va_agropecuaria_corrente'] * 100) / df_final['deflator_pib_2021']
+
 df_final = df_final.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021'])
 
 # FILTRO DE ANOMALIAS: Substituir pib_real negativo ou zero por NaN (inconsistência nos dados)
@@ -595,9 +598,11 @@ df_bndes_consolidado = pd.merge(
 )
 
 # Calcular valores reais com deflatores específicos
-df_bndes_consolidado['desembolsos_real'] = (df_bndes_consolidado['desembolsos_total_corrente'] * 100) / df_bndes_consolidado['deflator_pib_2021']
-df_bndes_consolidado['desembolsos_industria_real'] = (df_bndes_consolidado['desembolsos_industria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_industria_2021']
-df_bndes_consolidado['desembolsos_agropecuaria_real'] = (df_bndes_consolidado['desembolsos_agropecuaria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_agropecuaria_2021']
+df_bndes_consolidado['desembolsos_real_pib'] = (df_bndes_consolidado['desembolsos_total_corrente'] * 100) / df_bndes_consolidado['deflator_pib_2021']
+df_bndes_consolidado['desembolsos_industria_real_pib'] = (df_bndes_consolidado['desembolsos_industria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_2021']
+df_bndes_consolidado['desembolsos_agropecuaria_real_pib'] = (df_bndes_consolidado['desembolsos_agropecuaria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_2021']
+df_bndes_consolidado['desembolsos_industria_real_va'] = (df_bndes_consolidado['desembolsos_industria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_industria_2021']
+df_bndes_consolidado['desembolsos_agropecuaria_real_va'] = (df_bndes_consolidado['desembolsos_agropecuaria_corrente'] * 100) / df_bndes_consolidado['deflator_pib_agropecuaria_2021']
 
 # Remover colunas de deflatores e renomear
 df_bndes_consolidado = df_bndes_consolidado.drop(columns=['deflator_pib_2021', 'deflator_pib_industria_2021', 'deflator_pib_agropecuaria_2021'])
@@ -608,7 +613,7 @@ print(f'\nDataFrame consolidado de desembolsos do BNDES após deflação:')
 print(f'Número de linhas e colunas: {df_bndes_consolidado.shape}')
 print(f'Tipagens das colunas:\n{df_bndes_consolidado.dtypes}')
 print(f'\nEstatísticas descritivas:')
-print(df_bndes_consolidado[['desembolsos_real', 'desembolsos_industria_real', 'desembolsos_agropecuaria_real']].describe())
+print(df_bndes_consolidado[['desembolsos_real_pib', 'desembolsos_industria_real_pib', 'desembolsos_industria_real_va', 'desembolsos_agropecuaria_real_pib', 'desembolsos_agropecuaria_real_va']].describe())
 
 # Gerar arquivos parquet 
 tabela_bndes_consolidado = pa.Table.from_pandas(df_bndes_consolidado)
@@ -639,10 +644,10 @@ tabela_bndes = pq.read_table(Path(PROCESSED_DATA_PATH) / 'base_bndes.parquet')
 df_bndes = tabela_bndes.to_pandas()
 
 # Preparar df_pib_hab: selecionar colunas relevantes para merge
-df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_agropecuaria_corrente', 'va_agropecuaria_real']].copy()
+df_pib_merge = df_pib_hab[['codigo', 'municipio', 'estado', 'ano', 'populacao', 'pib_corrente', 'pib_real', 'va_industria_corrente', 'va_industria_real', 'va_industria_real_pib', 'va_agropecuaria_corrente', 'va_agropecuaria_real', 'va_agropecuaria_real_pib']].copy()
 
 # Preparar df_bndes: renomear 'municipio_codigo' e 'ano' para compatibilidade
-df_bndes_merge = df_bndes[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_corrente', 'desembolsos_real', 'desembolsos_industria_corrente', 'desembolsos_industria_real', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real']].copy()
+df_bndes_merge = df_bndes[['municipio_codigo', 'municipio', 'uf', 'ano', 'desembolsos_corrente', 'desembolsos_real_pib', 'desembolsos_industria_corrente', 'desembolsos_industria_real_pib', 'desembolsos_industria_real_va', 'desembolsos_agropecuaria_corrente', 'desembolsos_agropecuaria_real_pib', 'desembolsos_agropecuaria_real_va']].copy()
 df_bndes_merge.rename(columns={'municipio_codigo': 'codigo'}, inplace=True)
 
 # Converter para string para garantir compatibilidade no merge
@@ -672,11 +677,13 @@ df_bndes_merge['codigo'] = df_bndes_merge['codigo'].str[:6]
 df_bndes_merge = df_bndes_merge.groupby(['codigo', 'uf', 'ano'], as_index=False).agg({
     'municipio': 'first',
     'desembolsos_corrente': 'sum',
-    'desembolsos_real': 'sum',
+    'desembolsos_real_pib': 'sum',
     'desembolsos_industria_corrente': 'sum',
-    'desembolsos_industria_real': 'sum',
+    'desembolsos_industria_real_pib': 'sum',
+    'desembolsos_industria_real_va': 'sum',
     'desembolsos_agropecuaria_corrente': 'sum',
-    'desembolsos_agropecuaria_real': 'sum'
+    'desembolsos_agropecuaria_real_pib': 'sum',
+    'desembolsos_agropecuaria_real_va': 'sum'
 })
 
 # LEFT MERGE: manter todos os registros de df_pib_hab e unir com df_bndes quando houver correspondência
@@ -691,11 +698,13 @@ df_painel1 = pd.merge(
 )
 
 # Preencher valores de desembolso com zero onde não houver correspondência
-df_painel1['desembolsos_real'] = df_painel1['desembolsos_real'].fillna(0)
+df_painel1['desembolsos_real_pib'] = df_painel1['desembolsos_real_pib'].fillna(0)
 df_painel1['desembolsos_corrente'] = df_painel1['desembolsos_corrente'].fillna(0)
-df_painel1['desembolsos_industria_real'] = df_painel1['desembolsos_industria_real'].fillna(0)
+df_painel1['desembolsos_industria_real_pib'] = df_painel1['desembolsos_industria_real_pib'].fillna(0)
 df_painel1['desembolsos_industria_corrente'] = df_painel1['desembolsos_industria_corrente'].fillna(0)
-df_painel1['desembolsos_agropecuaria_real'] = df_painel1['desembolsos_agropecuaria_real'].fillna(0)
+df_painel1['desembolsos_industria_real_va'] = df_painel1['desembolsos_industria_real_va'].fillna(0)
+df_painel1['desembolsos_agropecuaria_real_pib'] = df_painel1['desembolsos_agropecuaria_real_pib'].fillna(0)
+df_painel1['desembolsos_agropecuaria_real_va'] = df_painel1['desembolsos_agropecuaria_real_va'].fillna(0)
 df_painel1['desembolsos_agropecuaria_corrente'] = df_painel1['desembolsos_agropecuaria_corrente'].fillna(0)
 
 # Consolidar coluna de município: usar municipio_pib quando disponível, caso contrário usar municipio_bndes
@@ -705,9 +714,9 @@ df_painel1['municipio'] = df_painel1['municipio_pib'].fillna(df_painel1['municip
 df_painel1.drop(columns=['uf', 'municipio_pib', 'municipio_bndes'], inplace=True)
 
 # verificar se o total de desembolsos ajustados no DataFrame de análise é igual ao total de desembolsos ajustados na base do BNDES
-total_desembolsos_ajustados_analise = df_painel1['desembolsos_real'].sum()
-total_desembolsos_ajustados_bndes = df_bndes_merge['desembolsos_real'].sum()
-total_desembolsos_ajustados_bndes_999999 = df_bndes_merge[df_bndes_merge["codigo"] == "999999"]["desembolsos_real"].sum()
+total_desembolsos_ajustados_analise = df_painel1['desembolsos_real_pib'].sum()
+total_desembolsos_ajustados_bndes = df_bndes_merge['desembolsos_real_pib'].sum()
+total_desembolsos_ajustados_bndes_999999 = df_bndes_merge[df_bndes_merge["codigo"] == "999999"]["desembolsos_real_pib"].sum()
 
 print(f'\nDataFrame de análise (município-ano):')
 print(f'\nTotal de desembolsos ajustados no DataFrame de análise: {total_desembolsos_ajustados_analise:,.2f} (Mil Reais)')
@@ -726,32 +735,51 @@ print(f'Diferença (análise - IBGE): {total_pib_real_analise - total_pib_real_i
 df_painel1['ano'] = pd.to_numeric(df_painel1['ano'], errors='coerce')
 df_painel1 = df_painel1.sort_values(by=['codigo', 'estado', 'ano'])
 
-# Calcular variável em função do pib e valor adicionado para indústria e agropecuária, além de suas diferenças (delta) ano a ano
+# Calcular variável em função do PIB, além de suas diferenças (delta) ano a ano
 df_painel1['log_pib_real'] = np.log(df_painel1['pib_real'])
-df_painel1['asinh_va_industria_real'] = np.arcsinh(df_painel1['va_industria_real'])
-df_painel1['asinh_va_agropecuaria_real'] = np.arcsinh(df_painel1['va_agropecuaria_real'])
+df_painel1['asinh_va_industria_real_pib'] = np.arcsinh(df_painel1['va_industria_real_pib'])
+df_painel1['asinh_va_agropecuaria_real_pib'] = np.arcsinh(df_painel1['va_agropecuaria_real_pib'])
 df_painel1['delta_log_pib_real'] = df_painel1.groupby(['codigo', 'estado'])['log_pib_real'].diff(1)
-df_painel1['delta_asinh_va_industria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_industria_real'].diff())
-df_painel1['delta_asinh_va_agropecuaria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_agropecuaria_real'].diff())
+df_painel1['delta_asinh_va_industria_real_pib'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_industria_real_pib'].diff())
+df_painel1['delta_asinh_va_agropecuaria_real_pib'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_agropecuaria_real_pib'].diff())
 df_painel1['pibpc_real'] = df_painel1['pib_real'] / df_painel1['populacao']
 df_painel1['log_pibpc_real'] = np.log(df_painel1['pibpc_real'])
 df_painel1['delta_log_pibpc_real'] = df_painel1.groupby(['codigo', 'estado'])['log_pibpc_real'].diff(1)
 
+# Calcular variável em função do VA de cada setor, além de suas diferenças (delta) ano a ano
+df_painel1['asinh_va_industria_real'] = np.arcsinh(df_painel1['va_industria_real'])
+df_painel1['asinh_va_agropecuaria_real'] = np.arcsinh(df_painel1['va_agropecuaria_real'])
+df_painel1['delta_asinh_va_industria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_industria_real'].diff())
+df_painel1['delta_asinh_va_agropecuaria_real'] = (df_painel1.groupby(['codigo', 'estado'])['asinh_va_agropecuaria_real'].diff())
+
+# Calcular variáveis lag 1--3 das variáveis acima
+for lag in range(1, 4):
+    df_painel1[f'delta_asinh_va_industria_real_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['delta_asinh_va_industria_real'].shift(lag)
+    df_painel1[f'delta_asinh_va_agropecuaria_real_lag{lag}'] = df_painel1.groupby(['codigo','estado'])['delta_asinh_va_agropecuaria_real'].shift(lag)
 
 # Calcular pib_real com lag
 pib_lag1 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(1)
 pib_lag2 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(2)
+
+# Calcular delta_log_pib_real e log_pib_real com lag
+delta_log_pib_real_lag1 = df_painel1.groupby(['codigo','estado'])['delta_log_pib_real'].shift(1)
+delta_log_pib_real_lag2 = df_painel1.groupby(['codigo','estado'])['delta_log_pib_real'].shift(2)
+log_pibpc_real_lag1 = df_painel1.groupby(['codigo','estado'])['log_pibpc_real'].shift(1)
+
+# Adicionar lag1 e lag2 do delta_log_pib_real ao dataframe
+df_painel1['delta_log_pib_real_lag1'] = delta_log_pib_real_lag1
+df_painel1['delta_log_pib_real_lag2'] = delta_log_pib_real_lag2
 
 # ! Usar t-1 como padrão, mas quando t-1 for NaN ou zero, usar t-2 (ocorre apenas em 1 caso, GUAMARE (RN) com PIB NEGATIVO em 2012)
 pib_lag = pib_lag1.copy()
 mask_usar_lag2 = (pib_lag1.isna()) | (pib_lag1 == 0)
 pib_lag[mask_usar_lag2] = pib_lag2[mask_usar_lag2]
 
-# Calcular variáveis de  share_desembolso_real em relação aos seus temas e em razão do pib_real_ano_anterior
-df_painel1['share_desembolso_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real'] / pib_lag)
-df_painel1['share_desembolso_industria_real_ano_anterior'] = (df_painel1['desembolsos_industria_real'] / pib_lag)
-df_painel1['share_desembolso_agropecuaria_real_ano_anterior'] = (df_painel1['desembolsos_agropecuaria_real'] / pib_lag)
-df_painel1['share_desembolso_pc_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real'] / df_painel1['populacao'] / pib_lag) # desembolso per capita
+# Calcular variáveis de share_desembolso_real em relação aos pib_real_ano_anterior
+df_painel1['share_desembolso_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real_pib'] / pib_lag)
+df_painel1['share_desembolso_industria_real_ano_anterior'] = (df_painel1['desembolsos_industria_real_pib'] / pib_lag)
+df_painel1['share_desembolso_agropecuaria_real_ano_anterior'] = (df_painel1['desembolsos_agropecuaria_real_pib'] / pib_lag)
+df_painel1['share_desembolso_pc_real_pib_real_ano_anterior'] = (df_painel1['desembolsos_real_pib'] / df_painel1['populacao'] / pib_lag) # desembolso per capita
 
 # Calcular variáveis lag 1--3 das variáveis acima
 for lag in range(1, 4):
@@ -796,12 +824,12 @@ for index, row in municipios_incompletos.iterrows():
 df_painel1.loc[df_painel1['pib_real'] <= 0, 'pib_real'] = np.nan  # Substituir valores de PIB real menores ou iguais a zero por NaN para evitar problemas de divisão e log
 pib_t = df_painel1['pib_real']  # PIB_t
 pib_tp1 = df_painel1.groupby(['codigo','estado'])['pib_real'].shift(-1) # PIB_{t+1}
-desemb_tp1 = df_painel1.groupby(['codigo','estado'])['desembolsos_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2 = df_painel1.groupby(['codigo','estado'])['desembolsos_real'].shift(-2) # Desemb_{t+2}
-desemb_tp1_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real'].shift(-2) # Desemb_{t+2}
-desemb_tp1_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-1) # Desemb_{t+1}
-desemb_tp2_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real'].shift(-2) # Desemb_{t+2}
+desemb_tp1 = df_painel1.groupby(['codigo','estado'])['desembolsos_real_pib'].shift(-1) # Desemb_{t+1}
+desemb_tp2 = df_painel1.groupby(['codigo','estado'])['desembolsos_real_pib'].shift(-2) # Desemb_{t+2}
+desemb_tp1_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real_pib'].shift(-1) # Desemb_{t+1}
+desemb_tp2_ind = df_painel1.groupby(['codigo','estado'])['desembolsos_industria_real_pib'].shift(-2) # Desemb_{t+2}
+desemb_tp1_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real_pib'].shift(-1) # Desemb_{t+1}
+desemb_tp2_agro = df_painel1.groupby(['codigo','estado'])['desembolsos_agropecuaria_real_pib'].shift(-2) # Desemb_{t+2}
 
 df_painel1['share_desembolso_real_pib_real_ano_anterior_lead1'] = desemb_tp1 / pib_t
 df_painel1['share_desembolso_real_pib_real_ano_anterior_lead2'] = desemb_tp2 / pib_tp1
@@ -811,20 +839,11 @@ df_painel1['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead1'] = d
 df_painel1['share_desembolso_agropecuaria_real_pib_real_ano_anterior_lead2'] = desemb_tp2_agro / pib_tp1
 
 # Verificação final do DataFrame de análise com tipos de dados
-print(f'\nDataFrame Painel (antes do drop de NA):')
+print(f'\nDataFrame Painel (sem drop de NA):')
 print(f'Número de linhas e colunas: {df_painel1.shape}')
 print(f'Menor e maior ano disponíveis após drop de NA: {df_painel1["ano"].min()} - {df_painel1["ano"].max()}')
 
-# Realizar o drop de registros NA (devido a lags e leads) e comparar quantidade de informações perdidas nas pontas
-df_painel1_final = df_painel1.dropna()
-
-print(f'\nDataFrame Painel após drop de NA (devido a lags e leads):')
-print(f'Número de linhas eliminadas: {df_painel1.shape[0] - df_painel1_final.shape[0]}, equivalente a {((df_painel1.shape[0] - df_painel1_final.shape[0]) / df_painel1.shape[0]) * 100:.2f}% do total de linhas')
-print(f'Menor e maior ano disponíveis após drop de NA: {df_painel1_final["ano"].min()} - {df_painel1_final["ano"].max()}')
-
-print(f'Tipagens das colunas (1C):\n{df_painel1_final.dtypes}')
-
-tabela_analise_final = pa.Table.from_pandas(df_painel1_final)
+tabela_analise_final = pa.Table.from_pandas(df_painel1)
 pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel1.parquet', compression='snappy')
 
 #_ ## CONCLUSÃO SOBRE PAINEL ###
@@ -835,6 +854,6 @@ pq.write_table(tabela_analise_final, Path(FINAL_DATA_PATH) / 'painel1.parquet', 
 #_ ##-------------------------------###
 
 # Liberação de memória
-del tabela_pib_hab, df_pib_hab, tabela_bndes, df_bndes, df_pib_merge, df_bndes_merge, estado_map, df_painel1, total_desembolsos_ajustados_analise, total_desembolsos_ajustados_bndes, total_desembolsos_ajustados_bndes_999999, total_pib_real_analise, total_pib_real_ibge, pib_lag1, pib_lag2, pib_lag, mask_usar_lag2, municipios_anos, municipios_anos_completo, municipios_incompletos, pib_t, pib_tp1, desemb_tp1, desemb_tp2, desemb_tp1_ind, desemb_tp2_ind, desemb_tp1_agro, desemb_tp2_agro, df_painel1_final, tabela_analise_final
+del tabela_pib_hab, df_pib_hab, tabela_bndes, df_bndes, df_pib_merge, df_bndes_merge, estado_map, df_painel1, total_desembolsos_ajustados_analise, total_desembolsos_ajustados_bndes, total_desembolsos_ajustados_bndes_999999, total_pib_real_analise, total_pib_real_ibge, pib_lag1, pib_lag2, pib_lag, mask_usar_lag2, municipios_anos, municipios_anos_completo, municipios_incompletos, pib_t, pib_tp1, desemb_tp1, desemb_tp2, desemb_tp1_ind, desemb_tp2_ind, desemb_tp1_agro, desemb_tp2_agro, tabela_analise_final
 gc.collect()
 # %%
